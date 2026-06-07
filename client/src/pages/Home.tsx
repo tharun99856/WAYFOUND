@@ -214,12 +214,11 @@ export default function Home() {
       addMarkers(stops);
       setTimeout(() => { setShowReplan(true); setTimeout(() => setShowReplan(false), 8000); }, 3000);
     } catch (error) {
-      console.error("Error generating itinerary:", error);
-      console.log("Falling back to smart mock system...");
+      console.error("Error generating itinerary, falling back to mock:", error);
       const mock = generateMockItinerary(userIntent);
       const stops = await buildStops(mock);
       setItinerary(stops);
-      setIsOffline(true);
+      setIsOffline(true); // shows "offline" badge so you know it's mock
       addMarkers(stops);
     } finally {
       setLoading(false);
@@ -732,9 +731,21 @@ export default function Home() {
               </div>
 
               {isOffline && (
-                <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "10px", color: "#CCCCCC", textAlign: "center", marginTop: "16px" }}>
-                  Offline mode
-                </p>
+                <div style={{ 
+                  marginTop: "16px", 
+                  padding: "10px 14px", 
+                  background: "rgba(245, 166, 35, 0.08)", 
+                  border: "1px solid rgba(245, 166, 35, 0.3)", 
+                  borderRadius: "8px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px"
+                }}>
+                  <span style={{ fontSize: "14px" }}>⚠️</span>
+                  <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "11px", color: "#F5A623", margin: 0 }}>
+                    AI unavailable — showing smart suggestions. Check Groq API key in Vercel.
+                  </p>
+                </div>
               )}
             </div>
           )}
