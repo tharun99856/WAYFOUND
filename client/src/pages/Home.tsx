@@ -166,37 +166,40 @@ export default function Home() {
     setIsOffline(false);
 
     try {
-      // Try Together AI API (free tier available)
-      console.log("Calling Together AI...");
+      const key = import.meta.env.VITE_GEMINI_KEY;
+      if (!key) {
+        console.error("Gemini API key not found");
+        throw new Error("no key");
+      }
+
+      console.log("Calling Gemini API with new key format...");
       const res = await fetch(
-        "https://api.together.xyz/v1/chat/completions",
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`,
         {
           method: "POST",
-          headers: { 
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            model: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
-            messages: [
-              { role: "system", content: SYSTEM_INSTRUCTION },
-              { role: "user", content: userIntent }
-            ],
-            max_tokens: 2048,
-            temperature: 0.7,
+            contents: [{ 
+              parts: [{ text: `${SYSTEM_INSTRUCTION}\n\nUser intent: "${userIntent}"` }] 
+            }],
+            generationConfig: { 
+              temperature: 0.7, 
+              maxOutputTokens: 2048 
+            },
           }),
         }
       );
 
       if (!res.ok) {
         const errorText = await res.text();
-        console.error("Together AI error:", res.status, errorText);
+        console.error("Gemini API error:", res.status, errorText);
         throw new Error("api error");
       }
       
       const data = await res.json();
-      console.log("Together AI response:", data);
+      console.log("Gemini response:", data);
       
-      let text = data.choices?.[0]?.message?.content ?? "";
+      let text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
       text = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
       console.log("Parsed text:", text);
       
