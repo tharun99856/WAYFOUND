@@ -166,35 +166,37 @@ export default function Home() {
     setIsOffline(false);
 
     try {
-      const key = import.meta.env.VITE_GEMINI_KEY;
-      if (!key) {
-        console.error("Gemini API key not found");
-        throw new Error("no key");
-      }
-
-      console.log("Calling Gemini API...");
+      // Try OpenRouter API (more reliable)
+      console.log("Calling OpenRouter API...");
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${key}`,
+        "https://openrouter.ai/api/v1/chat/completions",
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { 
+            "Content-Type": "application/json",
+            "HTTP-Referer": window.location.origin,
+            "X-Title": "Wayfound",
+          },
           body: JSON.stringify({
-            contents: [{ parts: [{ text: `${SYSTEM_INSTRUCTION}\n\nUser intent: "${userIntent}"` }] }],
-            generationConfig: { temperature: 0.7, maxOutputTokens: 2048 },
+            model: "google/gemini-flash-1.5",
+            messages: [
+              { role: "system", content: SYSTEM_INSTRUCTION },
+              { role: "user", content: userIntent }
+            ],
           }),
         }
       );
 
       if (!res.ok) {
         const errorText = await res.text();
-        console.error("Gemini API error:", res.status, errorText);
+        console.error("OpenRouter API error:", res.status, errorText);
         throw new Error("api error");
       }
       
       const data = await res.json();
-      console.log("Gemini response:", data);
+      console.log("OpenRouter response:", data);
       
-      let text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+      let text = data.choices?.[0]?.message?.content ?? "";
       text = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
       console.log("Parsed text:", text);
       
