@@ -531,74 +531,45 @@ export default function Home() {
       {/* RIGHT — Copilot panel */}
       <div style={{ width: "42%", display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden", backgroundColor: "#FFFFFF" }}>
 
-        {/* Header - Enhanced */}
+        {/* Header */}
         <div style={{ 
-          padding: "48px 32px 32px", 
+          padding: "28px 32px 20px", 
           borderBottom: "1px solid #E0DED8", 
           flexShrink: 0,
-          background: "linear-gradient(to bottom, #FFFFFF, #FDFCFA)",
-          position: "relative",
-          overflow: "hidden"
+          background: "white",
         }}>
-          {/* Subtle decorative element */}
-          <div style={{
-            position: "absolute",
-            top: 0,
-            right: 0,
-            width: "200px",
-            height: "200px",
-            background: "radial-gradient(circle, rgba(52, 168, 83, 0.03), transparent)",
-            pointerEvents: "none"
-          }} />
-          
           <div style={{ position: "relative", zIndex: 1 }}>
             <h1 style={{ 
               fontFamily: "'Instrument Serif', serif", 
-              fontSize: "72px", 
+              fontSize: "52px", 
               color: "#1A1A1A", 
-              margin: "0 0 8px 0", 
+              margin: "0 0 4px 0", 
               fontWeight: 600, 
               lineHeight: 1,
               letterSpacing: "-0.02em",
-              animation: "fadeInScale 0.8s ease-out"
             }}>
               Wayfound
             </h1>
             <p style={{ 
               fontFamily: "'Instrument Serif', serif", 
-              fontSize: "20px", 
+              fontSize: "16px", 
               color: "#888880", 
               fontStyle: "italic", 
-              margin: "0 0 16px 0",
-              animation: "fadeIn 0.8s ease-out 0.2s both"
+              margin: "0 0 12px 0",
             }}>
               Stop searching. Start going.
             </p>
             <div style={{
               display: "inline-flex",
               alignItems: "center",
-              gap: "8px",
-              padding: "8px 16px",
-              background: "linear-gradient(135deg, rgba(52, 168, 83, 0.08), rgba(52, 168, 83, 0.04))",
+              gap: "6px",
+              padding: "5px 12px",
+              background: "rgba(52, 168, 83, 0.06)",
               borderRadius: "20px",
               border: "1px solid rgba(52, 168, 83, 0.2)",
-              animation: "fadeIn 0.8s ease-out 0.4s both"
             }}>
-              <div style={{
-                width: "8px",
-                height: "8px",
-                borderRadius: "50%",
-                background: "#34A853",
-                animation: "gentlePulse 3s ease-in-out infinite"
-              }} />
-              <span style={{
-                fontFamily: "'IBM Plex Mono', monospace",
-                fontSize: "11px",
-                color: "#34A853",
-                fontWeight: "600",
-                letterSpacing: "0.05em",
-                textTransform: "uppercase"
-              }}>
+              <div style={{ width: "7px", height: "7px", borderRadius: "50%", background: "#34A853", animation: "gentlePulse 3s ease-in-out infinite" }} />
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "10px", color: "#34A853", fontWeight: "600", letterSpacing: "0.05em", textTransform: "uppercase" }}>
                 AI-Powered
               </span>
             </div>
@@ -606,7 +577,7 @@ export default function Home() {
         </div>
 
         {/* Intent input */}
-        <div style={{ padding: "24px 32px", borderBottom: "1px solid #E0DED8", flexShrink: 0, background: "white" }}>
+        <div style={{ padding: "24px 32px", borderBottom: "1px solid #E0DED8", flexShrink: 0, background: "white", overflowY: "auto", maxHeight: "55vh" }}>
           <form onSubmit={handleSubmit}>
 
             {/* Mode Toggle */}
