@@ -56,12 +56,14 @@ DESSERTS: Cream Stone, Häagen-Dazs, Concu, Over the Moon, Almond House, Karachi
 NIGHTLIFE: Social, Prost, Prism, 10 Downing Street, Hard Rock Cafe, B-Dubs
 UNIQUE: Ramoji Film City, Snow World, Birla Planetarium, Shilparamam, Sudha Cars Museum
 
-BUDGET & TIME RULES:
-- Extract: group size, age, budget (total or per person), start time
-- If group size given, divide total budget by group size
-- Default: ₹1500 per person, starts 7:00 PM
-- Time calc: previous time + visit duration + travel time
-- Visit durations: Activities (60-90min), Meals (60min), Cafes (30-45min), Dessert (25min)
+BUDGET RULES (CRITICAL):
+- The budget given is ALWAYS the TOTAL budget for the entire group
+- NEVER divide budget by group size - ₹2500 for 4 people = ₹2500 total spend
+- estimatedCost per stop = total cost for that stop (all people combined)
+- Example: 4 people, ₹2500 budget → go-karting ₹600pp = ₹2400 total (fits!) 
+- Try to USE as much of the budget as possible, don't leave money on the table
+- If group size given, you can show per-person cost in reasoning but estimatedCost = total
+- Default total budget: ₹1500 if not stated
 
 EXAMPLE OUTPUT:
 [{"placeName":"Raceology Go-Karting","address":"Gachibowli","time":"7:00 PM","estimatedCost":600,"travelTimeFromPrevious":"0 min","reasoning":"Perfect for 19-year-old group, adrenaline rush"},{"placeName":"Paradise Biryani","address":"Banjara Hills","time":"8:45 PM","estimatedCost":350,"travelTimeFromPrevious":"15 min","reasoning":"Iconic Hyderabad biryani, group-friendly"},{"placeName":"Cream Stone Ice Cream","address":"Jubilee Hills","time":"10:00 PM","estimatedCost":200,"travelTimeFromPrevious":"10 min","reasoning":"Trendy dessert spot for young groups"}]`;
