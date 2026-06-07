@@ -166,35 +166,35 @@ export default function Home() {
     setIsOffline(false);
 
     try {
-      // Try OpenRouter API (more reliable)
-      console.log("Calling OpenRouter API...");
+      // Try Together AI API (free tier available)
+      console.log("Calling Together AI...");
       const res = await fetch(
-        "https://openrouter.ai/api/v1/chat/completions",
+        "https://api.together.xyz/v1/chat/completions",
         {
           method: "POST",
           headers: { 
             "Content-Type": "application/json",
-            "HTTP-Referer": window.location.origin,
-            "X-Title": "Wayfound",
           },
           body: JSON.stringify({
-            model: "google/gemini-flash-1.5",
+            model: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
             messages: [
               { role: "system", content: SYSTEM_INSTRUCTION },
               { role: "user", content: userIntent }
             ],
+            max_tokens: 2048,
+            temperature: 0.7,
           }),
         }
       );
 
       if (!res.ok) {
         const errorText = await res.text();
-        console.error("OpenRouter API error:", res.status, errorText);
+        console.error("Together AI error:", res.status, errorText);
         throw new Error("api error");
       }
       
       const data = await res.json();
-      console.log("OpenRouter response:", data);
+      console.log("Together AI response:", data);
       
       let text = data.choices?.[0]?.message?.content ?? "";
       text = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
@@ -207,6 +207,7 @@ export default function Home() {
       setTimeout(() => { setShowReplan(true); setTimeout(() => setShowReplan(false), 8000); }, 3000);
     } catch (error) {
       console.error("Error generating itinerary:", error);
+      console.log("Falling back to smart mock system...");
       const mock = generateMockItinerary(userIntent);
       const stops = await buildStops(mock);
       setItinerary(stops);

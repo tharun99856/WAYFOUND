@@ -932,9 +932,10 @@ function filterPlacesByContext(places: Place[], context: UserContext): Place[] {
     }
     if (context.occasion === "family" && place.category === "nightlife") return false;
     
-    // Youth preference: avoid free nature spots unless explicitly requested
-    if (context.ageGroup < 25 && place.baseCost === 0 && place.category === "nature") {
-      return false;
+  // Youth preference: prioritize paid activities (gaming, go-karting, food)
+    if (context.ageGroup < 25 && place.baseCost === 0 && 
+        (place.category === "nature" || place.category === "cultural")) {
+      return false; // Skip free parks/temples for young groups
     }
     
     return true;
