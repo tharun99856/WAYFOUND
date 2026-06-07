@@ -166,40 +166,43 @@ export default function Home() {
     setIsOffline(false);
 
     try {
-      const key = import.meta.env.VITE_GEMINI_KEY;
+      const key = import.meta.env.VITE_GROK_KEY;
       if (!key) {
-        console.error("Gemini API key not found");
+        console.error("Grok API key not found");
         throw new Error("no key");
       }
 
-      console.log("Calling Gemini API with new key format...");
+      console.log("Calling Grok API...");
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`,
+        "https://api.x.ai/v1/chat/completions",
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { 
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${key}`,
+          },
           body: JSON.stringify({
-            contents: [{ 
-              parts: [{ text: `${SYSTEM_INSTRUCTION}\n\nUser intent: "${userIntent}"` }] 
-            }],
-            generationConfig: { 
-              temperature: 0.7, 
-              maxOutputTokens: 2048 
-            },
+            model: "grok-3-mini",
+            messages: [
+              { role: "system", content: SYSTEM_INSTRUCTION },
+              { role: "user", content: userIntent }
+            ],
+            temperature: 0.7,
+            max_tokens: 2048,
           }),
         }
       );
 
       if (!res.ok) {
         const errorText = await res.text();
-        console.error("Gemini API error:", res.status, errorText);
+        console.error("Grok API error:", res.status, errorText);
         throw new Error("api error");
       }
       
       const data = await res.json();
-      console.log("Gemini response:", data);
+      console.log("Grok response:", data);
       
-      let text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+      let text = data.choices?.[0]?.message?.content ?? "";
       text = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
       console.log("Parsed text:", text);
       
