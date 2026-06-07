@@ -1,21 +1,23 @@
 /**
- * Intelligent Mock Itinerary Generator
- * 
- * Fallback system when Gemini API fails.
- * Extracts budget, time, occasion, and group context from user intent.
- * Generates realistic itineraries from comprehensive Hyderabad places database.
+ * Wayfound Smart Mock Engine
+ * Strong fallback that mirrors AI quality — context-aware, geographically clustered,
+ * budget-maximising, group-specific itineraries from verified Hyderabad places.
  */
 
 interface Place {
   placeName: string;
   address: string;
-  baseCost: number;
+  costPerPerson: number;
   category: "activity" | "food" | "dessert" | "drinks" | "shopping" | "adventure" | "cultural" | "nature" | "sports" | "entertainment" | "nightlife";
   coordinates: { lat: number; lng: number };
-  tags: string[]; // e.g., ["romantic", "family-friendly", "youth", "adventure", "cultural"]
-  ageRange: [number, number]; // e.g., [18, 40] means suitable for 18-40 year olds
-  groupSize: [number, number]; // e.g., [2, 6] means suitable for 2-6 people
+  zone: "west" | "central" | "oldcity" | "north" | "south" | "east";
+  tags: string[];
+  ageMin: number;
+  ageMax: number;
+  groupMin: number;
+  groupMax: number;
   timePreference: "morning" | "afternoon" | "evening" | "night" | "any";
+  closingHour?: number; // 24hr, e.g. 17 = closes 5 PM
 }
 
 interface MockItineraryStop {
@@ -28,1116 +30,406 @@ interface MockItineraryStop {
 }
 
 interface UserContext {
-  budget: number;
+  totalBudget: number;
   startTime: string;
   occasion: string;
   groupSize: number;
   ageGroup: number;
   wantsFood: boolean;
+  wantsAdventure: boolean;
+  wantsCultural: boolean;
+  wantsNightlife: boolean;
+  preferredZone: string;
+  experienceType: string;
 }
 
-// MASSIVE Hyderabad places database - 100+ venues across all categories
+// ═══════════════════════════════════════════
+// VERIFIED HYDERABAD PLACES DATABASE
+// ═══════════════════════════════════════════
 const HYDERABAD_PLACES: Place[] = [
-  // === MALLS & SHOPPING ===
-  {
-    placeName: "Inorbit Mall",
-    address: "HITEC City, Madhapur",
-    baseCost: 400,
-    category: "shopping",
-    coordinates: { lat: 17.4398, lng: 78.3908 },
-    tags: ["family-friendly", "youth", "shopping"],
-    ageRange: [10, 60],
-    groupSize: [2, 8],
-    timePreference: "any",
-  },
-  {
-    placeName: "GVK One Mall",
-    address: "Road No 1, Banjara Hills",
-    baseCost: 500,
-    category: "shopping",
-    coordinates: { lat: 17.4326, lng: 78.4071 },
-    tags: ["premium", "family-friendly", "shopping"],
-    ageRange: [15, 65],
-    groupSize: [2, 6],
-    timePreference: "any",
-  },
-  {
-    placeName: "Forum Sujana Mall",
-    address: "Kukatpally",
-    baseCost: 350,
-    category: "shopping",
-    coordinates: { lat: 17.4926, lng: 78.3956 },
-    tags: ["family-friendly", "shopping"],
-    ageRange: [10, 60],
-    groupSize: [2, 8],
-    timePreference: "any",
-  },
-  {
-    placeName: "Sarath City Capital Mall",
-    address: "Gachibowli",
-    baseCost: 400,
-    category: "shopping",
-    coordinates: { lat: 17.4401, lng: 78.3489 },
-    tags: ["family-friendly", "youth", "shopping"],
-    ageRange: [10, 60],
-    groupSize: [2, 8],
-    timePreference: "any",
-  },
-  {
-    placeName: "Lulu Mall Hyderabad",
-    address: "Kukatpally",
-    baseCost: 500,
-    category: "shopping",
-    coordinates: { lat: 17.4850, lng: 78.3950 },
-    tags: ["family-friendly", "shopping", "massive"],
-    ageRange: [10, 70],
-    groupSize: [2, 10],
-    timePreference: "any",
-  },
-  {
-    placeName: "Manjeera Mall",
-    address: "Kukatpally",
-    baseCost: 300,
-    category: "shopping",
-    coordinates: { lat: 17.4949, lng: 78.3913 },
-    tags: ["family-friendly", "shopping"],
-    ageRange: [10, 60],
-    groupSize: [2, 6],
-    timePreference: "any",
-  },
-  {
-    placeName: "City Center Mall",
-    address: "Banjara Hills",
-    baseCost: 450,
-    category: "shopping",
-    coordinates: { lat: 17.4212, lng: 78.4497 },
-    tags: ["premium", "shopping"],
-    ageRange: [15, 65],
-    groupSize: [2, 6],
-    timePreference: "any",
-  },
 
-  // === PARKS & NATURE ===
-  {
-    placeName: "KBR National Park",
-    address: "Jubilee Hills",
-    baseCost: 0,
-    category: "nature",
-    coordinates: { lat: 17.4239, lng: 78.4043 },
-    tags: ["nature", "family-friendly", "peaceful"],
-    ageRange: [5, 70],
-    groupSize: [1, 10],
-    timePreference: "morning",
-  },
-  {
-    placeName: "Hussain Sagar Lakeside",
-    address: "Tank Bund Road",
-    baseCost: 0,
-    category: "nature",
-    coordinates: { lat: 17.4239, lng: 78.4738 },
-    tags: ["romantic", "family-friendly", "scenic"],
-    ageRange: [5, 70],
-    groupSize: [1, 20],
-    timePreference: "evening",
-  },
-  {
-    placeName: "Lumbini Park",
-    address: "Secretariat Road",
-    baseCost: 30,
-    category: "nature",
-    coordinates: { lat: 17.4125, lng: 78.4683 },
-    tags: ["family-friendly", "scenic", "evening-lights"],
-    ageRange: [5, 70],
-    groupSize: [2, 15],
-    timePreference: "evening",
-  },
-  {
-    placeName: "Nehru Zoological Park",
-    address: "Bahadurpura",
-    baseCost: 100,
-    category: "nature",
-    coordinates: { lat: 17.3500, lng: 78.4513 },
-    tags: ["family-friendly", "kids", "educational"],
-    ageRange: [3, 60],
-    groupSize: [2, 10],
-    timePreference: "morning",
-  },
-  {
-    placeName: "Botanical Garden",
-    address: "Kothaguda, Kondapur",
-    baseCost: 25,
-    category: "nature",
-    coordinates: { lat: 17.4608, lng: 78.3644 },
-    tags: ["nature", "peaceful", "family-friendly"],
-    ageRange: [5, 70],
-    groupSize: [2, 10],
-    timePreference: "morning",
-  },
-  {
-    placeName: "Durgam Cheruvu Secret Lake",
-    address: "Jubilee Hills",
-    baseCost: 0,
-    category: "nature",
-    coordinates: { lat: 17.4395, lng: 78.3908 },
-    tags: ["romantic", "scenic", "hidden-gem"],
-    ageRange: [15, 60],
-    groupSize: [2, 8],
-    timePreference: "evening",
-  },
+  // ── GO-KARTING ──
+  { placeName: "Wheelz Go-Karting", address: "Gachibowli", costPerPerson: 600, category: "adventure", coordinates: { lat: 17.4401, lng: 78.3628 }, zone: "west", tags: ["youth", "adventure", "racing", "competitive"], ageMin: 12, ageMax: 45, groupMin: 2, groupMax: 10, timePreference: "any" },
+  { placeName: "Raceology Go-Karting", address: "Gachibowli", costPerPerson: 650, category: "adventure", coordinates: { lat: 17.4410, lng: 78.3620 }, zone: "west", tags: ["youth", "adventure", "racing"], ageMin: 12, ageMax: 45, groupMin: 2, groupMax: 8, timePreference: "any" },
+  { placeName: "F9 Go-Karting", address: "Kompally", costPerPerson: 550, category: "adventure", coordinates: { lat: 17.5476, lng: 78.4914 }, zone: "north", tags: ["youth", "adventure", "racing"], ageMin: 12, ageMax: 45, groupMin: 2, groupMax: 10, timePreference: "any" },
+  { placeName: "iKart Racing", address: "Shamshabad", costPerPerson: 700, category: "adventure", coordinates: { lat: 17.2403, lng: 78.4294 }, zone: "south", tags: ["premium", "racing", "adventure"], ageMin: 16, ageMax: 50, groupMin: 2, groupMax: 8, timePreference: "any" },
 
-  // === HISTORICAL & CULTURAL ===
-  {
-    placeName: "Chowmahalla Palace",
-    address: "Khilwat, Old City",
-    baseCost: 80,
-    category: "cultural",
-    coordinates: { lat: 17.3616, lng: 78.4740 },
-    tags: ["cultural", "historical", "architecture"],
-    ageRange: [10, 70],
-    groupSize: [1, 15],
-    timePreference: "morning",
-  },
-  {
-    placeName: "Golconda Fort",
-    address: "Ibrahim Bagh",
-    baseCost: 25,
-    category: "cultural",
-    coordinates: { lat: 17.3833, lng: 78.4011 },
-    tags: ["historical", "adventure", "cultural"],
-    ageRange: [10, 65],
-    groupSize: [2, 20],
-    timePreference: "morning",
-  },
-  {
-    placeName: "Salar Jung Museum",
-    address: "Darulshifa, Old City",
-    baseCost: 50,
-    category: "cultural",
-    coordinates: { lat: 17.3712, lng: 78.4803 },
-    tags: ["cultural", "educational", "art"],
-    ageRange: [10, 70],
-    groupSize: [1, 10],
-    timePreference: "morning",
-  },
-  {
-    placeName: "Charminar",
-    address: "Charminar Road, Old City",
-    baseCost: 25,
-    category: "cultural",
-    coordinates: { lat: 17.3616, lng: 78.4747 },
-    tags: ["iconic", "cultural", "historical"],
-    ageRange: [10, 70],
-    groupSize: [1, 20],
-    timePreference: "any",
-  },
-  {
-    placeName: "Qutb Shahi Tombs",
-    address: "Ibrahim Bagh",
-    baseCost: 25,
-    category: "cultural",
-    coordinates: { lat: 17.3946, lng: 78.3919 },
-    tags: ["historical", "peaceful", "architecture"],
-    ageRange: [15, 70],
-    groupSize: [1, 10],
-    timePreference: "morning",
-  },
-  {
-    placeName: "Birla Mandir",
-    address: "Naubat Pahad, Khairatabad",
-    baseCost: 0,
-    category: "cultural",
-    coordinates: { lat: 17.4062, lng: 78.4691 },
-    tags: ["religious", "peaceful", "scenic-views"],
-    ageRange: [5, 75],
-    groupSize: [1, 15],
-    timePreference: "any",
-  },
-  {
-    placeName: "Mecca Masjid",
-    address: "Charminar, Old City",
-    baseCost: 0,
-    category: "cultural",
-    coordinates: { lat: 17.3615, lng: 78.4738 },
-    tags: ["religious", "historical", "architecture"],
-    ageRange: [10, 70],
-    groupSize: [1, 20],
-    timePreference: "any",
-  },
+  // ── SPORTS TURFS ──
+  { placeName: "PlayOn Turf", address: "Gachibowli", costPerPerson: 200, category: "sports", coordinates: { lat: 17.4435, lng: 78.3487 }, zone: "west", tags: ["sports", "football", "youth", "team"], ageMin: 15, ageMax: 40, groupMin: 6, groupMax: 14, timePreference: "evening" },
+  { placeName: "Champions Turf", address: "Madhapur", costPerPerson: 220, category: "sports", coordinates: { lat: 17.4483, lng: 78.3915 }, zone: "west", tags: ["sports", "football", "cricket", "youth"], ageMin: 15, ageMax: 40, groupMin: 6, groupMax: 16, timePreference: "evening" },
+  { placeName: "Premier Box Cricket", address: "Gachibowli", costPerPerson: 250, category: "sports", coordinates: { lat: 17.4347, lng: 78.3494 }, zone: "west", tags: ["sports", "cricket", "youth", "team"], ageMin: 15, ageMax: 45, groupMin: 6, groupMax: 12, timePreference: "any" },
+  { placeName: "Playo Badminton", address: "Madhapur", costPerPerson: 150, category: "sports", coordinates: { lat: 17.4483, lng: 78.3915 }, zone: "west", tags: ["sports", "indoor", "badminton"], ageMin: 12, ageMax: 55, groupMin: 2, groupMax: 8, timePreference: "any" },
 
-  // === GO-KARTING & ADVENTURE ===
-  {
-    placeName: "Raceology Go-Karting",
-    address: "Gachibowli",
-    baseCost: 600,
-    category: "adventure",
-    coordinates: { lat: 17.4401, lng: 78.3628 },
-    tags: ["adventure", "youth", "adrenaline"],
-    ageRange: [14, 45],
-    groupSize: [2, 8],
-    timePreference: "any",
-  },
-  {
-    placeName: "F9 Go Karting",
-    address: "Kompally",
-    baseCost: 550,
-    category: "adventure",
-    coordinates: { lat: 17.5476, lng: 78.4914 },
-    tags: ["adventure", "youth", "competitive"],
-    ageRange: [14, 45],
-    groupSize: [2, 10],
-    timePreference: "any",
-  },
-  {
-    placeName: "iKart Racing Hyderabad",
-    address: "Shamshabad",
-    baseCost: 700,
-    category: "adventure",
-    coordinates: { lat: 17.2403, lng: 78.4294 },
-    tags: ["adventure", "premium", "racing"],
-    ageRange: [16, 50],
-    groupSize: [2, 8],
-    timePreference: "any",
-  },
-  {
-    placeName: "Smaaash Hyderabad",
-    address: "Inorbit Mall, Madhapur",
-    baseCost: 800,
-    category: "entertainment",
-    coordinates: { lat: 17.4398, lng: 78.3908 },
-    tags: ["gaming", "youth", "activity-center"],
-    ageRange: [10, 40],
-    groupSize: [2, 10],
-    timePreference: "any",
-  },
-  {
-    placeName: "Rush Adventure Park",
-    address: "Kompally",
-    baseCost: 500,
-    category: "adventure",
-    coordinates: { lat: 17.5450, lng: 78.4900 },
-    tags: ["adventure", "family-friendly", "outdoor"],
-    ageRange: [8, 50],
-    groupSize: [2, 15],
-    timePreference: "any",
-  },
-  {
-    placeName: "Wild Waters Amusement Park",
-    address: "Shamirpet",
-    baseCost: 750,
-    category: "adventure",
-    coordinates: { lat: 17.5700, lng: 78.5500 },
-    tags: ["water-park", "family-friendly", "summer"],
-    ageRange: [5, 60],
-    groupSize: [2, 12],
-    timePreference: "any",
-  },
+  // ── GAMING & ENTERTAINMENT ──
+  { placeName: "Smaaash Entertainment", address: "Inorbit Mall, Madhapur", costPerPerson: 600, category: "entertainment", coordinates: { lat: 17.4398, lng: 78.3908 }, zone: "west", tags: ["gaming", "youth", "activities", "bowling"], ageMin: 10, ageMax: 40, groupMin: 2, groupMax: 10, timePreference: "any" },
+  { placeName: "Rush Escape Room", address: "Madhapur", costPerPerson: 500, category: "entertainment", coordinates: { lat: 17.4483, lng: 78.3915 }, zone: "west", tags: ["puzzle", "team-building", "youth"], ageMin: 15, ageMax: 45, groupMin: 4, groupMax: 8, timePreference: "any" },
+  { placeName: "Jumpzone Trampoline Park", address: "Gachibowli", costPerPerson: 400, category: "adventure", coordinates: { lat: 17.4401, lng: 78.3628 }, zone: "west", tags: ["fun", "active", "youth", "kids"], ageMin: 6, ageMax: 35, groupMin: 2, groupMax: 15, timePreference: "any" },
+  { placeName: "Timezone", address: "Nexus Mall, Kukatpally", costPerPerson: 300, category: "entertainment", coordinates: { lat: 17.4926, lng: 78.3956 }, zone: "north", tags: ["arcade", "gaming", "family-friendly", "kids"], ageMin: 6, ageMax: 40, groupMin: 2, groupMax: 8, timePreference: "any" },
+  { placeName: "Lazer Zone VR Gaming", address: "Banjara Hills", costPerPerson: 450, category: "entertainment", coordinates: { lat: 17.4239, lng: 78.4358 }, zone: "west", tags: ["vr", "gaming", "youth", "tech"], ageMin: 12, ageMax: 40, groupMin: 2, groupMax: 6, timePreference: "any" },
+  { placeName: "Snow World", address: "Lower Tank Bund, Hyderabad", costPerPerson: 650, category: "entertainment", coordinates: { lat: 17.4125, lng: 78.4683 }, zone: "central", tags: ["unique", "fun", "family-friendly", "kids"], ageMin: 5, ageMax: 50, groupMin: 2, groupMax: 12, timePreference: "any" },
 
-  // === SPORTS TURFS & GAMING ===
-  {
-    placeName: "PlayOn Turf Gachibowli",
-    address: "Gachibowli",
-    baseCost: 400,
-    category: "sports",
-    coordinates: { lat: 17.4435, lng: 78.3487 },
-    tags: ["sports", "youth", "football"],
-    ageRange: [15, 40],
-    groupSize: [6, 14],
-    timePreference: "evening",
-  },
-  {
-    placeName: "Turf Town Kukatpally",
-    address: "Kukatpally",
-    baseCost: 350,
-    category: "sports",
-    coordinates: { lat: 17.4926, lng: 78.3956 },
-    tags: ["sports", "football", "cricket"],
-    ageRange: [15, 45],
-    groupSize: [6, 16],
-    timePreference: "evening",
-  },
-  {
-    placeName: "Box Cricket Gachibowli",
-    address: "Gachibowli Stadium",
-    baseCost: 500,
-    category: "sports",
-    coordinates: { lat: 17.4347, lng: 78.3494 },
-    tags: ["sports", "youth", "cricket"],
-    ageRange: [15, 45],
-    groupSize: [6, 12],
-    timePreference: "any",
-  },
-  {
-    placeName: "Playo Badminton Arena",
-    address: "Madhapur",
-    baseCost: 300,
-    category: "sports",
-    coordinates: { lat: 17.4483, lng: 78.3915 },
-    tags: ["sports", "indoor", "badminton"],
-    ageRange: [12, 55],
-    groupSize: [2, 8],
-    timePreference: "any",
-  },
-  {
-    placeName: "Timezone Arcade",
-    address: "Forum Sujana Mall",
-    baseCost: 400,
-    category: "entertainment",
-    coordinates: { lat: 17.4926, lng: 78.3956 },
-    tags: ["gaming", "family-friendly", "arcade"],
-    ageRange: [6, 40],
-    groupSize: [2, 8],
-    timePreference: "any",
-  },
-  {
-    placeName: "Breakout Escape Rooms",
-    address: "Banjara Hills",
-    baseCost: 600,
-    category: "entertainment",
-    coordinates: { lat: 17.4239, lng: 78.4358 },
-    tags: ["puzzle", "youth", "team-building"],
-    ageRange: [15, 45],
-    groupSize: [4, 8],
-    timePreference: "any",
-  },
-  {
-    placeName: "Virtual Reality Lounge",
-    address: "GVK One Mall",
-    baseCost: 500,
-    category: "entertainment",
-    coordinates: { lat: 17.4326, lng: 78.4071 },
-    tags: ["vr", "youth", "tech"],
-    ageRange: [12, 40],
-    groupSize: [2, 6],
-    timePreference: "any",
-  },
-  {
-    placeName: "Amoeba Bowling Alley",
-    address: "Inorbit Mall",
-    baseCost: 350,
-    category: "entertainment",
-    coordinates: { lat: 17.4398, lng: 78.3908 },
-    tags: ["bowling", "family-friendly", "indoor"],
-    ageRange: [8, 60],
-    groupSize: [2, 8],
-    timePreference: "any",
-  },
+  // ── MALLS & SHOPPING ──
+  { placeName: "Inorbit Mall", address: "Madhapur, Hitech City", costPerPerson: 400, category: "shopping", coordinates: { lat: 17.4398, lng: 78.3908 }, zone: "west", tags: ["shopping", "family-friendly", "food-court"], ageMin: 10, ageMax: 60, groupMin: 2, groupMax: 10, timePreference: "any" },
+  { placeName: "GVK One Mall", address: "Banjara Hills", costPerPerson: 500, category: "shopping", coordinates: { lat: 17.4326, lng: 78.4071 }, zone: "west", tags: ["premium", "shopping", "family-friendly"], ageMin: 15, ageMax: 65, groupMin: 2, groupMax: 8, timePreference: "any" },
+  { placeName: "Forum Sujana City", address: "Kukatpally", costPerPerson: 350, category: "shopping", coordinates: { lat: 17.4926, lng: 78.3956 }, zone: "north", tags: ["shopping", "family-friendly", "movies"], ageMin: 10, ageMax: 60, groupMin: 2, groupMax: 10, timePreference: "any" },
+  { placeName: "Sarath City Capital Mall", address: "Kondapur", costPerPerson: 400, category: "shopping", coordinates: { lat: 17.4401, lng: 78.3489 }, zone: "west", tags: ["shopping", "youth", "movies"], ageMin: 10, ageMax: 60, groupMin: 2, groupMax: 8, timePreference: "any" },
+  { placeName: "Lulu Mall", address: "Kukatpally", costPerPerson: 500, category: "shopping", coordinates: { lat: 17.4850, lng: 78.3950 }, zone: "north", tags: ["massive", "shopping", "family-friendly"], ageMin: 10, ageMax: 70, groupMin: 2, groupMax: 12, timePreference: "any" },
 
-  // === ICONIC BIRYANI & LOCAL FOOD ===
-  {
-    placeName: "Paradise Biryani",
-    address: "Multiple Locations",
-    baseCost: 350,
-    category: "food",
-    coordinates: { lat: 17.4326, lng: 78.4071 },
-    tags: ["iconic", "biryani", "local"],
-    ageRange: [10, 70],
-    groupSize: [2, 10],
-    timePreference: "any",
-  },
-  {
-    placeName: "Bawarchi Restaurant",
-    address: "RTC X Roads",
-    baseCost: 300,
-    category: "food",
-    coordinates: { lat: 17.4399, lng: 78.4983 },
-    tags: ["biryani", "local", "famous"],
-    ageRange: [10, 70],
-    groupSize: [2, 8],
-    timePreference: "any",
-  },
-  {
-    placeName: "Shah Ghouse Cafe",
-    address: "Tolichowki",
-    baseCost: 320,
-    category: "food",
-    coordinates: { lat: 17.4008, lng: 78.4131 },
-    tags: ["biryani", "local", "late-night"],
-    ageRange: [12, 65],
-    groupSize: [2, 10],
-    timePreference: "any",
-  },
-  {
-    placeName: "Shadab Restaurant",
-    address: "Near Charminar, Old City",
-    baseCost: 250,
-    category: "food",
-    coordinates: { lat: 17.3616, lng: 78.4747 },
-    tags: ["old-city", "haleem", "traditional"],
-    ageRange: [12, 70],
-    groupSize: [2, 8],
-    timePreference: "any",
-  },
-  {
-    placeName: "Sarvi Restaurant",
-    address: "Banjara Hills",
-    baseCost: 400,
-    category: "food",
-    coordinates: { lat: 17.4185, lng: 78.4408 },
-    tags: ["kebabs", "local", "popular"],
-    ageRange: [15, 65],
-    groupSize: [2, 8],
-    timePreference: "any",
-  },
-  {
-    placeName: "Nimrah Cafe & Bakery",
-    address: "Near Charminar",
-    baseCost: 150,
-    category: "food",
-    coordinates: { lat: 17.3616, lng: 78.4747 },
-    tags: ["old-city", "chai", "bakery"],
-    ageRange: [10, 70],
-    groupSize: [2, 6],
-    timePreference: "any",
-  },
-  {
-    placeName: "Karachi Bakery",
-    address: "Moazzam Jahi Market",
-    baseCost: 200,
-    category: "dessert",
-    coordinates: { lat: 17.3948, lng: 78.4772 },
-    tags: ["bakery", "iconic", "snacks"],
-    ageRange: [5, 70],
-    groupSize: [1, 8],
-    timePreference: "any",
-  },
+  // ── NATURE & LAKES ──
+  { placeName: "Hussain Sagar Lake", address: "Tank Bund Road", costPerPerson: 0, category: "nature", coordinates: { lat: 17.4239, lng: 78.4738 }, zone: "central", tags: ["scenic", "romantic", "evening", "free"], ageMin: 5, ageMax: 70, groupMin: 1, groupMax: 20, timePreference: "evening" },
+  { placeName: "Durgam Cheruvu", address: "Jubilee Hills", costPerPerson: 0, category: "nature", coordinates: { lat: 17.4395, lng: 78.3908 }, zone: "west", tags: ["hidden-gem", "romantic", "scenic", "peaceful"], ageMin: 15, ageMax: 60, groupMin: 2, groupMax: 8, timePreference: "evening" },
+  { placeName: "KBR National Park", address: "Jubilee Hills", costPerPerson: 0, category: "nature", coordinates: { lat: 17.4239, lng: 78.4043 }, zone: "west", tags: ["nature", "morning-walk", "peaceful", "fitness"], ageMin: 5, ageMax: 70, groupMin: 1, groupMax: 10, timePreference: "morning", closingHour: 18 },
+  { placeName: "Lumbini Park", address: "Secretariat Road", costPerPerson: 30, category: "nature", coordinates: { lat: 17.4125, lng: 78.4683 }, zone: "central", tags: ["family-friendly", "evening", "laser-show"], ageMin: 5, ageMax: 70, groupMin: 2, groupMax: 15, timePreference: "evening" },
+  { placeName: "Osman Sagar (Gandipet)", address: "Gandipet, Hyderabad", costPerPerson: 0, category: "nature", coordinates: { lat: 17.3500, lng: 78.3200 }, zone: "west", tags: ["scenic", "peaceful", "picnic"], ageMin: 5, ageMax: 70, groupMin: 2, groupMax: 15, timePreference: "morning" },
 
-  // === FINE DINING & UPSCALE ===
-  {
-    placeName: "Olive Bistro",
-    address: "Road No 5, Banjara Hills",
-    baseCost: 1200,
-    category: "food",
-    coordinates: { lat: 17.4239, lng: 78.4358 },
-    tags: ["romantic", "premium", "italian"],
-    ageRange: [25, 60],
-    groupSize: [2, 6],
-    timePreference: "evening",
-  },
-  {
-    placeName: "Fisherman's Wharf",
-    address: "Road No 45, Jubilee Hills",
-    baseCost: 800,
-    category: "food",
-    coordinates: { lat: 17.4290, lng: 78.4125 },
-    tags: ["seafood", "romantic", "coastal"],
-    ageRange: [20, 60],
-    groupSize: [2, 8],
-    timePreference: "any",
-  },
-  {
-    placeName: "Ohri's Gufaa",
-    address: "GVK One Mall, Banjara Hills",
-    baseCost: 900,
-    category: "food",
-    coordinates: { lat: 17.4326, lng: 78.4071 },
-    tags: ["unique-ambiance", "cave-theme", "family-friendly"],
-    ageRange: [10, 65],
-    groupSize: [2, 10],
-    timePreference: "any",
-  },
-  {
-    placeName: "Farzi Cafe",
-    address: "GVK One Mall",
-    baseCost: 1000,
-    category: "food",
-    coordinates: { lat: 17.4326, lng: 78.4071 },
-    tags: ["modern-indian", "youth", "trendy"],
-    ageRange: [18, 45],
-    groupSize: [2, 8],
-    timePreference: "any",
-  },
-  {
-    placeName: "Taj Falaknuma Palace - Adaa",
-    address: "Engine Bowli, Falaknuma",
-    baseCost: 3000,
-    category: "food",
-    coordinates: { lat: 17.3287, lng: 78.4632 },
-    tags: ["luxury", "royal", "special-occasion"],
-    ageRange: [25, 70],
-    groupSize: [2, 8],
-    timePreference: "evening",
-  },
-  {
-    placeName: "Collage - Hyatt Hyderabad",
-    address: "Hitech City",
-    baseCost: 1500,
-    category: "food",
-    coordinates: { lat: 17.4239, lng: 78.3908 },
-    tags: ["buffet", "premium", "multicuisine"],
-    ageRange: [15, 70],
-    groupSize: [2, 10],
-    timePreference: "any",
-  },
-  {
-    placeName: "Chutneys Restaurant",
-    address: "Road No 10, Banjara Hills",
-    baseCost: 350,
-    category: "food",
-    coordinates: { lat: 17.4185, lng: 78.4408 },
-    tags: ["south-indian", "family-friendly", "breakfast"],
-    ageRange: [10, 70],
-    groupSize: [2, 10],
-    timePreference: "morning",
-  },
+  // ── CULTURAL & HISTORICAL ──
+  { placeName: "Charminar", address: "Old City, Hyderabad", costPerPerson: 25, category: "cultural", coordinates: { lat: 17.3616, lng: 78.4747 }, zone: "oldcity", tags: ["iconic", "historical", "tourist", "photo-walk"], ageMin: 10, ageMax: 70, groupMin: 1, groupMax: 20, timePreference: "any" },
+  { placeName: "Golconda Fort", address: "Ibrahim Bagh", costPerPerson: 25, category: "cultural", coordinates: { lat: 17.3833, lng: 78.4011 }, zone: "west", tags: ["historical", "heritage", "tourist", "morning-only"], ageMin: 10, ageMax: 65, groupMin: 2, groupMax: 20, timePreference: "morning", closingHour: 17 },
+  { placeName: "Chowmahalla Palace", address: "Old City", costPerPerson: 80, category: "cultural", coordinates: { lat: 17.3616, lng: 78.4740 }, zone: "oldcity", tags: ["heritage", "royal", "architecture", "photography"], ageMin: 10, ageMax: 70, groupMin: 1, groupMax: 15, timePreference: "morning" },
+  { placeName: "Salar Jung Museum", address: "Darulshifa, Old City", costPerPerson: 50, category: "cultural", coordinates: { lat: 17.3712, lng: 78.4803 }, zone: "oldcity", tags: ["museum", "art", "cultural", "educational"], ageMin: 10, ageMax: 70, groupMin: 1, groupMax: 10, timePreference: "morning", closingHour: 17 },
+  { placeName: "Birla Mandir", address: "Naubat Pahad, Khairatabad", costPerPerson: 0, category: "cultural", coordinates: { lat: 17.4062, lng: 78.4691 }, zone: "central", tags: ["spiritual", "scenic-view", "peaceful"], ageMin: 5, ageMax: 75, groupMin: 1, groupMax: 15, timePreference: "any" },
+  { placeName: "Shilparamam", address: "Madhapur", costPerPerson: 50, category: "cultural", coordinates: { lat: 17.4483, lng: 78.3915 }, zone: "west", tags: ["crafts", "cultural", "family-friendly", "open-air"], ageMin: 8, ageMax: 70, groupMin: 2, groupMax: 15, timePreference: "any" },
 
-  // === CAFES & CASUAL DINING ===
-  {
-    placeName: "Lamakaan",
-    address: "Road No 1, Banjara Hills",
-    baseCost: 250,
-    category: "drinks",
-    coordinates: { lat: 17.4239, lng: 78.4358 },
-    tags: ["cultural", "art", "conversation"],
-    ageRange: [18, 50],
-    groupSize: [2, 10],
-    timePreference: "any",
-  },
-  {
-    placeName: "Roastery Coffee House",
-    address: "Film Nagar",
-    baseCost: 300,
-    category: "drinks",
-    coordinates: { lat: 17.4142, lng: 78.4093 },
-    tags: ["coffee", "work-friendly", "cozy"],
-    ageRange: [18, 55],
-    groupSize: [1, 6],
-    timePreference: "any",
-  },
-  {
-    placeName: "Autumn Leaf Cafe",
-    address: "Jubilee Hills",
-    baseCost: 400,
-    category: "drinks",
-    coordinates: { lat: 17.4312, lng: 78.4095 },
-    tags: ["instagrammable", "youth", "coffee"],
-    ageRange: [16, 40],
-    groupSize: [2, 6],
-    timePreference: "any",
-  },
-  {
-    placeName: "Tabula Rasa",
-    address: "Jubilee Hills",
-    baseCost: 350,
-    category: "drinks",
-    coordinates: { lat: 17.4312, lng: 78.4095 },
-    tags: ["books", "quiet", "coffee"],
-    ageRange: [18, 50],
-    groupSize: [1, 4],
-    timePreference: "any",
-  },
-  {
-    placeName: "Heart Cup Coffee",
-    address: "Banjara Hills",
-    baseCost: 250,
-    category: "drinks",
-    coordinates: { lat: 17.4217, lng: 78.4431 },
-    tags: ["coffee", "cozy", "casual"],
-    ageRange: [16, 50],
-    groupSize: [2, 6],
-    timePreference: "any",
-  },
-  {
-    placeName: "Cafe Bahar",
-    address: "Basheerbagh",
-    baseCost: 300,
-    category: "food",
-    coordinates: { lat: 17.4036, lng: 78.4772 },
-    tags: ["irani-chai", "traditional", "local"],
-    ageRange: [15, 70],
-    groupSize: [2, 8],
-    timePreference: "any",
-  },
-  {
-    placeName: "Eat Street Food Court",
-    address: "Inorbit Mall, Madhapur",
-    baseCost: 400,
-    category: "food",
-    coordinates: { lat: 17.4398, lng: 78.3908 },
-    tags: ["variety", "casual", "mall-food"],
-    ageRange: [10, 60],
-    groupSize: [2, 10],
-    timePreference: "any",
-  },
+  // ── BIRYANI & ICONIC FOOD ──
+  { placeName: "Paradise Restaurant", address: "Secunderabad", costPerPerson: 350, category: "food", coordinates: { lat: 17.4399, lng: 78.4983 }, zone: "north", tags: ["biryani", "iconic", "must-try", "all-groups"], ageMin: 5, ageMax: 75, groupMin: 2, groupMax: 12, timePreference: "any" },
+  { placeName: "Bawarchi", address: "RTC X Roads, Himayatnagar", costPerPerson: 300, category: "food", coordinates: { lat: 17.4399, lng: 78.4983 }, zone: "central", tags: ["biryani", "local-favorite", "budget"], ageMin: 10, ageMax: 70, groupMin: 2, groupMax: 10, timePreference: "any" },
+  { placeName: "Shah Ghouse", address: "Tolichowki", costPerPerson: 320, category: "food", coordinates: { lat: 17.4008, lng: 78.4131 }, zone: "west", tags: ["biryani", "late-night", "local", "authentic"], ageMin: 12, ageMax: 65, groupMin: 2, groupMax: 10, timePreference: "any" },
+  { placeName: "Shadab Hotel", address: "Old City", costPerPerson: 250, category: "food", coordinates: { lat: 17.3616, lng: 78.4747 }, zone: "oldcity", tags: ["haleem", "biryani", "old-city", "authentic"], ageMin: 12, ageMax: 70, groupMin: 2, groupMax: 10, timePreference: "any" },
+  { placeName: "Sarvi Hotel", address: "Banjara Hills", costPerPerson: 400, category: "food", coordinates: { lat: 17.4185, lng: 78.4408 }, zone: "west", tags: ["biryani", "kebabs", "popular", "evening"], ageMin: 15, ageMax: 65, groupMin: 2, groupMax: 10, timePreference: "any" },
+  { placeName: "Cafe Bahar", address: "Basheer Bagh", costPerPerson: 250, category: "food", coordinates: { lat: 17.4036, lng: 78.4772 }, zone: "central", tags: ["irani-chai", "traditional", "local", "morning"], ageMin: 15, ageMax: 70, groupMin: 2, groupMax: 8, timePreference: "morning" },
+  { placeName: "Nimrah Cafe", address: "Near Charminar, Old City", costPerPerson: 100, category: "food", coordinates: { lat: 17.3616, lng: 78.4747 }, zone: "oldcity", tags: ["irani-chai", "old-city", "cheap", "iconic"], ageMin: 10, ageMax: 70, groupMin: 2, groupMax: 8, timePreference: "any" },
+  { placeName: "Pista House", address: "Pathergatti, Old City", costPerPerson: 200, category: "food", coordinates: { lat: 17.3616, lng: 78.4740 }, zone: "oldcity", tags: ["haleem", "old-city", "iconic", "sweets"], ageMin: 10, ageMax: 70, groupMin: 2, groupMax: 8, timePreference: "any" },
 
-  // === DESSERTS & ICE CREAM ===
-  {
-    placeName: "Cream Stone Ice Cream",
-    address: "Multiple Locations",
-    baseCost: 200,
-    category: "dessert",
-    coordinates: { lat: 17.4217, lng: 78.4431 },
-    tags: ["ice-cream", "youth", "trendy"],
-    ageRange: [5, 50],
-    groupSize: [2, 8],
-    timePreference: "any",
-  },
-  {
-    placeName: "Häagen-Dazs",
-    address: "GVK One Mall",
-    baseCost: 400,
-    category: "dessert",
-    coordinates: { lat: 17.4326, lng: 78.4071 },
-    tags: ["premium", "ice-cream", "date-spot"],
-    ageRange: [10, 60],
-    groupSize: [2, 6],
-    timePreference: "any",
-  },
-  {
-    placeName: "Concu Ice Cream",
-    address: "Jubilee Hills",
-    baseCost: 250,
-    category: "dessert",
-    coordinates: { lat: 17.4312, lng: 78.4095 },
-    tags: ["artisan", "ice-cream", "unique-flavors"],
-    ageRange: [8, 60],
-    groupSize: [2, 6],
-    timePreference: "any",
-  },
-  {
-    placeName: "Over the Moon Desserts",
-    address: "Banjara Hills",
-    baseCost: 300,
-    category: "dessert",
-    coordinates: { lat: 17.4217, lng: 78.4431 },
-    tags: ["desserts", "instagram", "youth"],
-    ageRange: [12, 45],
-    groupSize: [2, 6],
-    timePreference: "any",
-  },
-  {
-    placeName: "Almond House Sweets",
-    address: "Multiple Locations",
-    baseCost: 150,
-    category: "dessert",
-    coordinates: { lat: 17.4239, lng: 78.4358 },
-    tags: ["traditional", "sweets", "local"],
-    ageRange: [5, 75],
-    groupSize: [2, 10],
-    timePreference: "any",
-  },
+  // ── FINE DINING ──
+  { placeName: "AB's Absolute Barbecues", address: "Gachibowli", costPerPerson: 900, category: "food", coordinates: { lat: 17.4401, lng: 78.3628 }, zone: "west", tags: ["bbq", "premium", "group-friendly", "unlimited"], ageMin: 18, ageMax: 65, groupMin: 2, groupMax: 12, timePreference: "evening" },
+  { placeName: "Barbeque Nation", address: "Banjara Hills", costPerPerson: 800, category: "food", coordinates: { lat: 17.4239, lng: 78.4358 }, zone: "west", tags: ["bbq", "group-friendly", "buffet", "family-friendly"], ageMin: 10, ageMax: 65, groupMin: 2, groupMax: 15, timePreference: "evening" },
+  { placeName: "Ohri's Gufaa", address: "Necklace Road", costPerPerson: 900, category: "food", coordinates: { lat: 17.4125, lng: 78.4683 }, zone: "central", tags: ["cave-theme", "unique-ambiance", "family-friendly"], ageMin: 10, ageMax: 65, groupMin: 2, groupMax: 10, timePreference: "any" },
+  { placeName: "The Fisherman's Wharf", address: "Banjara Hills", costPerPerson: 800, category: "food", coordinates: { lat: 17.4290, lng: 78.4125 }, zone: "west", tags: ["seafood", "romantic", "premium"], ageMin: 20, ageMax: 60, groupMin: 2, groupMax: 8, timePreference: "any" },
+  { placeName: "Farzi Cafe", address: "Banjara Hills", costPerPerson: 900, category: "food", coordinates: { lat: 17.4239, lng: 78.4358 }, zone: "west", tags: ["modern-indian", "trendy", "instagram", "youth"], ageMin: 18, ageMax: 45, groupMin: 2, groupMax: 8, timePreference: "any" },
+  { placeName: "Olive Bistro", address: "Jubilee Hills", costPerPerson: 1200, category: "food", coordinates: { lat: 17.4312, lng: 78.4095 }, zone: "west", tags: ["romantic", "premium", "italian", "date-night"], ageMin: 25, ageMax: 60, groupMin: 2, groupMax: 6, timePreference: "evening" },
 
-  // === NIGHTLIFE & BARS ===
-  {
-    placeName: "Social Jubilee Hills",
-    address: "Road No 36, Jubilee Hills",
-    baseCost: 800,
-    category: "nightlife",
-    coordinates: { lat: 17.4312, lng: 78.4095 },
-    tags: ["youth", "trendy", "drinks"],
-    ageRange: [21, 45],
-    groupSize: [2, 10],
-    timePreference: "night",
-  },
-  {
-    placeName: "Prost Brewery",
-    address: "Financial District, Gachibowli",
-    baseCost: 900,
-    category: "nightlife",
-    coordinates: { lat: 17.4167, lng: 78.3450 },
-    tags: ["brewery", "youth", "microbrewery"],
-    ageRange: [21, 50],
-    groupSize: [2, 12],
-    timePreference: "evening",
-  },
-  {
-    placeName: "Prism Pub & Brewery",
-    address: "Jubilee Hills",
-    baseCost: 1000,
-    category: "nightlife",
-    coordinates: { lat: 17.4312, lng: 78.4095 },
-    tags: ["club", "dancing", "young-crowd"],
-    ageRange: [21, 35],
-    groupSize: [2, 10],
-    timePreference: "night",
-  },
-  {
-    placeName: "10 Downing Street",
-    address: "Banjara Hills",
-    baseCost: 1200,
-    category: "nightlife",
-    coordinates: { lat: 17.4239, lng: 78.4358 },
-    tags: ["upscale", "pub", "expat-favorite"],
-    ageRange: [25, 55],
-    groupSize: [2, 8],
-    timePreference: "night",
-  },
-  {
-    placeName: "Hard Rock Cafe",
-    address: "Hitec City",
-    baseCost: 1500,
-    category: "nightlife",
-    coordinates: { lat: 17.4398, lng: 78.3908 },
-    tags: ["international", "music", "premium"],
-    ageRange: [21, 50],
-    groupSize: [2, 10],
-    timePreference: "evening",
-  },
-  {
-    placeName: "Playboy Club Hyderabad",
-    address: "Banjara Hills",
-    baseCost: 2000,
-    category: "nightlife",
-    coordinates: { lat: 17.4239, lng: 78.4358 },
-    tags: ["luxury", "exclusive", "upscale"],
-    ageRange: [25, 50],
-    groupSize: [2, 8],
-    timePreference: "night",
-  },
-  {
-    placeName: "B-Dubs Bar & Grill",
-    address: "Madhapur",
-    baseCost: 700,
-    category: "nightlife",
-    coordinates: { lat: 17.4483, lng: 78.3915 },
-    tags: ["sports-bar", "casual", "wings"],
-    ageRange: [21, 45],
-    groupSize: [2, 12],
-    timePreference: "evening",
-  },
+  // ── CAFES & CASUAL ──
+  { placeName: "Social Jubilee Hills", address: "Road No 36, Jubilee Hills", costPerPerson: 600, category: "drinks", coordinates: { lat: 17.4312, lng: 78.4095 }, zone: "west", tags: ["youth", "trendy", "social", "drinks"], ageMin: 21, ageMax: 45, groupMin: 2, groupMax: 10, timePreference: "evening" },
+  { placeName: "Roastery Coffee House", address: "Jubilee Hills", costPerPerson: 300, category: "drinks", coordinates: { lat: 17.4142, lng: 78.4093 }, zone: "west", tags: ["coffee", "work-friendly", "cozy", "instagram"], ageMin: 18, ageMax: 55, groupMin: 1, groupMax: 6, timePreference: "any" },
+  { placeName: "Autumn Leaf Cafe", address: "Jubilee Hills", costPerPerson: 400, category: "drinks", coordinates: { lat: 17.4312, lng: 78.4095 }, zone: "west", tags: ["instagram", "youth", "coffee", "aesthetic"], ageMin: 16, ageMax: 40, groupMin: 2, groupMax: 6, timePreference: "any" },
+  { placeName: "Lamakaan", address: "Banjara Hills", costPerPerson: 250, category: "drinks", coordinates: { lat: 17.4239, lng: 78.4358 }, zone: "west", tags: ["cultural", "art", "conversation", "eclectic"], ageMin: 18, ageMax: 50, groupMin: 2, groupMax: 10, timePreference: "any" },
+  { placeName: "Tabula Rasa", address: "Jubilee Hills", costPerPerson: 300, category: "drinks", coordinates: { lat: 17.4312, lng: 78.4095 }, zone: "west", tags: ["books", "quiet", "intellectual", "coffee"], ageMin: 18, ageMax: 50, groupMin: 1, groupMax: 4, timePreference: "any" },
+  { placeName: "Chutneys", address: "Banjara Hills", costPerPerson: 350, category: "food", coordinates: { lat: 17.4185, lng: 78.4408 }, zone: "west", tags: ["south-indian", "family-friendly", "breakfast", "lunch"], ageMin: 10, ageMax: 70, groupMin: 2, groupMax: 10, timePreference: "morning" },
+  { placeName: "Eat Street", address: "Necklace Road", costPerPerson: 300, category: "food", coordinates: { lat: 17.4125, lng: 78.4683 }, zone: "central", tags: ["street-food", "variety", "evening", "casual"], ageMin: 10, ageMax: 65, groupMin: 2, groupMax: 12, timePreference: "evening" },
 
-  // === UNIQUE EXPERIENCES ===
-  {
-    placeName: "Ramoji Film City",
-    address: "Abdullahpurmet",
-    baseCost: 1500,
-    category: "entertainment",
-    coordinates: { lat: 17.2543, lng: 78.6808 },
-    tags: ["theme-park", "family-friendly", "full-day"],
-    ageRange: [5, 70],
-    groupSize: [2, 20],
-    timePreference: "morning",
-  },
-  {
-    placeName: "Snow World",
-    address: "Lower Tank Bund",
-    baseCost: 650,
-    category: "entertainment",
-    coordinates: { lat: 17.4125, lng: 78.4683 },
-    tags: ["unique", "kids", "indoor"],
-    ageRange: [5, 50],
-    groupSize: [2, 10],
-    timePreference: "any",
-  },
-  {
-    placeName: "Birla Planetarium",
-    address: "Naubat Pahad",
-    baseCost: 100,
-    category: "cultural",
-    coordinates: { lat: 17.4062, lng: 78.4691 },
-    tags: ["educational", "space", "kids"],
-    ageRange: [8, 60],
-    groupSize: [2, 15],
-    timePreference: "any",
-  },
-  {
-    placeName: "Wonderla Amusement Park",
-    address: "Raviryal Village",
-    baseCost: 1200,
-    category: "adventure",
-    coordinates: { lat: 17.3167, lng: 78.1833 },
-    tags: ["theme-park", "family-friendly", "full-day"],
-    ageRange: [5, 60],
-    groupSize: [2, 15],
-    timePreference: "morning",
-  },
-  {
-    placeName: "Jalavihar Water Park",
-    address: "Necklace Road",
-    baseCost: 400,
-    category: "adventure",
-    coordinates: { lat: 17.4125, lng: 78.4683 },
-    tags: ["water-park", "family-friendly", "summer"],
-    ageRange: [5, 55],
-    groupSize: [2, 12],
-    timePreference: "afternoon",
-  },
-  {
-    placeName: "Shilparamam Cultural Village",
-    address: "Madhapur",
-    baseCost: 50,
-    category: "cultural",
-    coordinates: { lat: 17.4483, lng: 78.3915 },
-    tags: ["crafts", "traditional", "family-friendly"],
-    ageRange: [8, 70],
-    groupSize: [2, 15],
-    timePreference: "any",
-  },
-  {
-    placeName: "Sudha Cars Museum",
-    address: "Bahadurpura",
-    baseCost: 50,
-    category: "cultural",
-    coordinates: { lat: 17.3500, lng: 78.4513 },
-    tags: ["quirky", "unique", "photography"],
-    ageRange: [10, 60],
-    groupSize: [2, 10],
-    timePreference: "any",
-  },
+  // ── DESSERTS ──
+  { placeName: "Cream Stone", address: "Banjara Hills", costPerPerson: 200, category: "dessert", coordinates: { lat: 17.4217, lng: 78.4431 }, zone: "west", tags: ["ice-cream", "trendy", "youth", "casual"], ageMin: 5, ageMax: 50, groupMin: 2, groupMax: 8, timePreference: "any" },
+  { placeName: "Haagen-Dazs", address: "GVK One Mall, Banjara Hills", costPerPerson: 400, category: "dessert", coordinates: { lat: 17.4326, lng: 78.4071 }, zone: "west", tags: ["premium", "ice-cream", "romantic", "date"], ageMin: 15, ageMax: 60, groupMin: 2, groupMax: 6, timePreference: "any" },
+  { placeName: "Rollacosta", address: "Gachibowli", costPerPerson: 250, category: "dessert", coordinates: { lat: 17.4401, lng: 78.3628 }, zone: "west", tags: ["rolled-ice-cream", "youth", "fun"], ageMin: 8, ageMax: 40, groupMin: 2, groupMax: 8, timePreference: "any" },
+  { placeName: "Concu Chocolatier", address: "Jubilee Hills", costPerPerson: 350, category: "dessert", coordinates: { lat: 17.4312, lng: 78.4095 }, zone: "west", tags: ["artisan", "chocolate", "romantic", "premium"], ageMin: 12, ageMax: 60, groupMin: 2, groupMax: 6, timePreference: "any" },
+  { placeName: "Karachi Bakery", address: "Mozamjahi Market, Abids", costPerPerson: 200, category: "dessert", coordinates: { lat: 17.3948, lng: 78.4772 }, zone: "central", tags: ["bakery", "iconic", "biscuits", "tourist"], ageMin: 5, ageMax: 75, groupMin: 1, groupMax: 10, timePreference: "any" },
+  { placeName: "Almond House", address: "Banjara Hills", costPerPerson: 150, category: "dessert", coordinates: { lat: 17.4239, lng: 78.4358 }, zone: "west", tags: ["sweets", "traditional", "gifting", "all-ages"], ageMin: 5, ageMax: 75, groupMin: 1, groupMax: 10, timePreference: "any" },
+
+  // ── NIGHTLIFE & BARS ──
+  { placeName: "Prost Brew Pub", address: "Financial District, Gachibowli", costPerPerson: 900, category: "nightlife", coordinates: { lat: 17.4167, lng: 78.3450 }, zone: "west", tags: ["brewery", "craft-beer", "youth", "corporate"], ageMin: 21, ageMax: 50, groupMin: 2, groupMax: 12, timePreference: "evening" },
+  { placeName: "Hard Rock Cafe", address: "Banjara Hills", costPerPerson: 1200, category: "nightlife", coordinates: { lat: 17.4239, lng: 78.4358 }, zone: "west", tags: ["international", "music", "premium", "youth"], ageMin: 21, ageMax: 50, groupMin: 2, groupMax: 10, timePreference: "night" },
+  { placeName: "Prism Skybar", address: "Madhapur", costPerPerson: 1000, category: "nightlife", coordinates: { lat: 17.4483, lng: 78.3915 }, zone: "west", tags: ["rooftop", "skybar", "premium", "views"], ageMin: 21, ageMax: 45, groupMin: 2, groupMax: 10, timePreference: "night" },
+  { placeName: "The Moonshine Project", address: "Jubilee Hills", costPerPerson: 1000, category: "nightlife", coordinates: { lat: 17.4312, lng: 78.4095 }, zone: "west", tags: ["cocktails", "trendy", "youth", "premium"], ageMin: 21, ageMax: 45, groupMin: 2, groupMax: 8, timePreference: "night" },
+  { placeName: "Bootlegger", address: "Jubilee Hills", costPerPerson: 800, category: "nightlife", coordinates: { lat: 17.4312, lng: 78.4095 }, zone: "west", tags: ["bar", "youth", "casual", "music"], ageMin: 21, ageMax: 45, groupMin: 2, groupMax: 10, timePreference: "night" },
+
+  // ── UNIQUE EXPERIENCES ──
+  { placeName: "Ramoji Film City", address: "Anaspur Village, Hyderabad", costPerPerson: 1500, category: "entertainment", coordinates: { lat: 17.2543, lng: 78.6808 }, zone: "east", tags: ["theme-park", "full-day", "family-friendly", "tourist"], ageMin: 5, ageMax: 70, groupMin: 2, groupMax: 20, timePreference: "morning" },
+  { placeName: "Falaknuma Palace", address: "Falaknuma, Old City", costPerPerson: 3000, category: "food", coordinates: { lat: 17.3287, lng: 78.4632 }, zone: "oldcity", tags: ["luxury", "royal", "heritage", "special-occasion"], ageMin: 25, ageMax: 70, groupMin: 2, groupMax: 8, timePreference: "evening" },
+  { placeName: "Birla Planetarium", address: "Naubat Pahad", costPerPerson: 100, category: "cultural", coordinates: { lat: 17.4062, lng: 78.4691 }, zone: "central", tags: ["educational", "space", "kids", "family-friendly"], ageMin: 8, ageMax: 60, groupMin: 2, groupMax: 15, timePreference: "any" },
+  { placeName: "Nehru Zoological Park", address: "Bahadurpura", costPerPerson: 100, category: "nature", coordinates: { lat: 17.3500, lng: 78.4513 }, zone: "oldcity", tags: ["zoo", "kids", "family-friendly", "educational"], ageMin: 3, ageMax: 65, groupMin: 2, groupMax: 12, timePreference: "morning", closingHour: 17 },
+  { placeName: "Laad Bazaar", address: "Near Charminar, Old City", costPerPerson: 300, category: "shopping", coordinates: { lat: 17.3616, lng: 78.4740 }, zone: "oldcity", tags: ["bangles", "shopping", "tourist", "heritage", "photo-walk"], ageMin: 10, ageMax: 70, groupMin: 2, groupMax: 15, timePreference: "any" },
 ];
 
-// Extract user context from intent
-function extractUserContext(intent: string): UserContext {
+// ═══════════════════════════════════════════
+// CONTEXT EXTRACTION
+// ═══════════════════════════════════════════
+function extractContext(intent: string): UserContext {
   const lower = intent.toLowerCase();
-  
-  // Extract group size
-  const groupMatch = lower.match(/(?:for\s+)?(\d+)\s*(?:people|ppl|persons|folks|friends)/);
+
+  // Group size
+  const groupMatch = lower.match(/(\d+)\s*(?:people|ppl|persons|friends|guys|members|of\s+us)/);
   const groupSize = groupMatch ? parseInt(groupMatch[1]) : 2;
-  
-  // Extract age
-  const ageMatch = lower.match(/age\s*(?:group|grp)?\s*(?:of|is)?\s*(\d+)/);
+
+  // Age
+  const ageMatch = lower.match(/age\s*(?:group|grp)?\s*(?:of|:)?\s*(\d+)/);
   const ageGroup = ageMatch ? parseInt(ageMatch[1]) : 25;
-  
-  // Extract budget
-  const budgetMatch = intent.match(/₹?\s*(\d+)/);
-  const totalBudget = budgetMatch ? parseInt(budgetMatch[1]) : 1500;
-  const budget = groupSize > 1 ? Math.floor(totalBudget / groupSize) : totalBudget;
-  
-  // Extract start time
-  const timeMatch = intent.match(/(\d{1,2})\s*(am|pm|AM|PM)/);
-  const startTime = timeMatch ? `${timeMatch[1]}:00 ${timeMatch[2].toUpperCase()}` : "7:00 PM";
-  
-  // Extract occasion
+
+  // Budget — TOTAL for group
+  const budgetMatch = intent.match(/(?:under|below|within|budget|rs\.?|₹)\s*(\d+)/i) || intent.match(/(\d{4,})/);
+  const totalBudget = budgetMatch ? parseInt(budgetMatch[1]) : 2000;
+
+  // Start time
+  const timeMatch = intent.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i);
+  const startTime = timeMatch
+    ? `${timeMatch[1]}:${timeMatch[2] || "00"} ${timeMatch[3].toUpperCase()}`
+    : "7:00 PM";
+
+  // Occasion
   let occasion = "friends";
-  if (lower.includes("date") || lower.includes("romantic") || lower.includes("couple")) {
-    occasion = "date";
-  } else if (lower.includes("family") || lower.includes("kids") || lower.includes("children")) {
-    occasion = "family";
-  } else if (lower.includes("solo") || lower.includes("alone")) {
-    occasion = "solo";
-  }
-  
-  // Check if wants food
-  const wantsFood = lower.includes("food") || lower.includes("eat") || lower.includes("dinner") || 
-                    lower.includes("lunch") || lower.includes("breakfast") || lower.includes("biryani");
-  
-  return { budget, startTime, occasion, groupSize, ageGroup, wantsFood };
+  if (lower.match(/\bdate\b|romantic|couple|gf|bf|girlfriend|boyfriend/)) occasion = "date";
+  else if (lower.match(/family|kids|children|parents/)) occasion = "family";
+  else if (lower.match(/\bsolo\b|alone|myself/)) occasion = "solo";
+  else if (lower.match(/corporate|team|office|colleagues/)) occasion = "corporate";
+  else if (lower.match(/tourist|visiting|tourism/)) occasion = "tourist";
+
+  // Intent flags
+  const wantsFood = lower.match(/food|eat|dinner|lunch|breakfast|biryani|restaurant|cafe|hungry/) !== null;
+  const wantsAdventure = lower.match(/adventure|karting|turf|gaming|sport|cricket|football|escape|trampoline/) !== null;
+  const wantsCultural = lower.match(/heritage|cultural|history|fort|palace|museum|charminar|old city/) !== null;
+  const wantsNightlife = lower.match(/bar|pub|club|drinks|nightlife|night out|beer|party/) !== null;
+
+  // Experience type
+  let experienceType = "general";
+  if (lower.includes("food trail")) experienceType = "food-trail";
+  else if (lower.includes("cafe hopping")) experienceType = "cafe-hopping";
+  else if (lower.includes("heritage") || lower.includes("history")) experienceType = "heritage-walk";
+  else if (lower.includes("night out") || lower.includes("nightlife")) experienceType = "night-out";
+  else if (lower.includes("birthday")) experienceType = "birthday";
+  else if (lower.includes("tourist")) experienceType = "tourist";
+
+  // Preferred zone from keywords
+  let preferredZone = "any";
+  if (lower.match(/gachibowli|madhapur|hitech|jubilee|banjara|kondapur/)) preferredZone = "west";
+  else if (lower.match(/old city|charminar|falaknuma|secunderabad/)) preferredZone = "oldcity";
+  else if (lower.match(/kukatpally|kompally|alwal|north/)) preferredZone = "north";
+
+  return { totalBudget, startTime, occasion, groupSize, ageGroup, wantsFood, wantsAdventure, wantsCultural, wantsNightlife, preferredZone, experienceType };
 }
 
-// Smart filtering based on context
-function filterPlacesByContext(places: Place[], context: UserContext): Place[] {
-  return places.filter(place => {
-    // Budget check - more lenient for groups
-    const budgetLimit = context.groupSize > 3 ? context.budget * 0.6 : context.budget / 2;
-    if (place.baseCost > budgetLimit) return false;
-    
-    // Age range check
-    if (context.ageGroup < place.ageRange[0] || context.ageGroup > place.ageRange[1]) return false;
-    
+// ═══════════════════════════════════════════
+// SMART FILTERING
+// ═══════════════════════════════════════════
+function filterPlaces(places: Place[], ctx: UserContext): Place[] {
+  const startHour = parseStartHour(ctx.startTime);
+
+  return places.filter(p => {
+    // Age check
+    if (ctx.ageGroup < p.ageMin || ctx.ageGroup > p.ageMax) return false;
+
     // Group size check
-    if (context.groupSize < place.groupSize[0] || context.groupSize > place.groupSize[1]) return false;
-    
-    // Occasion-based tags
-    if (context.occasion === "date" && !place.tags.includes("romantic") && place.category === "nightlife") {
-      return place.tags.includes("upscale");
-    }
-    if (context.occasion === "family" && place.category === "nightlife") return false;
-    
-  // Youth preference: prioritize paid activities (gaming, go-karting, food)
-    if (context.ageGroup < 25 && place.baseCost === 0 && 
-        (place.category === "nature" || place.category === "cultural")) {
-      return false; // Skip free parks/temples for young groups
-    }
-    
+    if (ctx.groupSize < p.groupMin || ctx.groupSize > p.groupMax) return false;
+
+    // No nightlife for families or under 21
+    if (p.category === "nightlife" && (ctx.occasion === "family" || ctx.ageGroup < 21)) return false;
+
+    // Skip closed venues based on time
+    if (p.closingHour && startHour >= p.closingHour - 1) return false;
+
+    // Skip morning-only places for evening plans
+    if (p.timePreference === "morning" && startHour >= 14) return false;
+
+    // Prefer zone clustering
+    if (ctx.preferredZone !== "any" && p.zone !== ctx.preferredZone) return false;
+
     return true;
   });
 }
 
-// Calculate travel time between two coordinates
-function calculateTravelTime(
-  from: { lat: number; lng: number },
-  to: { lat: number; lng: number }
-): string {
+function parseStartHour(timeStr: string): number {
+  const [time, period] = timeStr.split(" ");
+  let [h] = time.split(":").map(Number);
+  if (period === "PM" && h !== 12) h += 12;
+  if (period === "AM" && h === 12) h = 0;
+  return h;
+}
+
+// ═══════════════════════════════════════════
+// ITINERARY BUILDER
+// ═══════════════════════════════════════════
+function pickStops(filtered: Place[], all: Place[], ctx: UserContext): Place[] {
+  const picked: Place[] = [];
+  let spent = 0;
+
+  // Define stop sequence based on context
+  let sequence: string[][] = [];
+
+  if (ctx.ageGroup < 25 && ctx.occasion !== "date") {
+    // Young group: adventure → food → dessert
+    sequence = [
+      ["adventure", "sports", "entertainment"],
+      ["food"],
+      ["dessert", "drinks"],
+    ];
+  } else if (ctx.occasion === "date") {
+    // Date night: scenic/cultural → fine dining → dessert
+    sequence = [
+      ["nature", "cultural"],
+      ["food", "drinks"],
+      ["dessert"],
+    ];
+  } else if (ctx.occasion === "family") {
+    // Family: park/entertainment → food → dessert
+    sequence = [
+      ["nature", "entertainment", "cultural"],
+      ["food"],
+      ["dessert"],
+    ];
+  } else if (ctx.wantsCultural) {
+    // Heritage walk: cultural → food → cultural/shopping
+    sequence = [
+      ["cultural"],
+      ["food"],
+      ["cultural", "shopping"],
+    ];
+  } else if (ctx.wantsNightlife) {
+    // Night out: food → drinks → nightlife
+    sequence = [
+      ["food"],
+      ["drinks", "nightlife"],
+      ["nightlife"],
+    ];
+  } else {
+    // Default: activity → food → dessert
+    sequence = [
+      ["activity", "entertainment", "adventure", "shopping"],
+      ["food"],
+      ["dessert", "drinks"],
+    ];
+  }
+
+  // Pick one place per slot
+  const pool = filtered.length > 0 ? filtered : all.filter(p => ctx.ageGroup >= p.ageMin && ctx.ageGroup <= p.ageMax);
+
+  for (const cats of sequence) {
+    const candidate = pool.find(p =>
+      cats.includes(p.category) &&
+      !picked.includes(p) &&
+      spent + p.costPerPerson * ctx.groupSize <= ctx.totalBudget * 1.1 // allow 10% over
+    );
+    if (candidate) {
+      picked.push(candidate);
+      spent += candidate.costPerPerson * ctx.groupSize;
+    }
+  }
+
+  // If we still have budget headroom, try adding a 4th stop
+  if (picked.length === 3) {
+    const remaining = ctx.totalBudget - spent;
+    const bonus = pool.find(p =>
+      !picked.includes(p) &&
+      p.costPerPerson * ctx.groupSize <= remaining &&
+      p.category !== picked[picked.length - 1].category
+    );
+    if (bonus && remaining >= bonus.costPerPerson * ctx.groupSize) {
+      picked.push(bonus);
+    }
+  }
+
+  return picked;
+}
+
+// Travel time between coords
+function travelTime(from: { lat: number; lng: number }, to: { lat: number; lng: number }): string {
   const R = 6371;
   const dLat = ((to.lat - from.lat) * Math.PI) / 180;
   const dLng = ((to.lng - from.lng) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((from.lat * Math.PI) / 180) *
-      Math.cos((to.lat * Math.PI) / 180) *
-      Math.sin(dLng / 2) *
-      Math.sin(dLng / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  const distance = R * c;
-  const travelMinutes = Math.round((distance / 30) * 60);
-  return travelMinutes === 0 ? "0 min" : `${travelMinutes} min`;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(from.lat * Math.PI / 180) * Math.cos(to.lat * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  const dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const mins = Math.round((dist / 25) * 60); // 25 km/h avg Hyd traffic
+  return mins <= 1 ? "0 min" : `${mins} min`;
 }
 
-// Add time to a time string
-function addMinutes(timeStr: string, minutes: number): string {
+function addMins(timeStr: string, minutes: number): string {
   const [time, period] = timeStr.split(" ");
-  const [hours, mins] = time.split(":").map(Number);
-  
-  let hour24 = hours;
-  if (period === "AM" && hours === 12) {
-    hour24 = 0;
-  } else if (period === "PM" && hours !== 12) {
-    hour24 = hours + 12;
-  }
-  
-  let totalMinutes = hour24 * 60 + mins + minutes;
-  
-  while (totalMinutes >= 24 * 60) totalMinutes -= 24 * 60;
-  while (totalMinutes < 0) totalMinutes += 24 * 60;
-  
-  let newHours = Math.floor(totalMinutes / 60);
-  let newMins = totalMinutes % 60;
-  let newPeriod = newHours >= 12 ? "PM" : "AM";
-  
-  if (newHours === 0) newHours = 12;
-  else if (newHours > 12) newHours -= 12;
-  
-  return `${newHours}:${newMins.toString().padStart(2, "0")} ${newPeriod}`;
+  const [h, m] = time.split(":").map(Number);
+  let total = (period === "PM" && h !== 12 ? h + 12 : period === "AM" && h === 12 ? 0 : h) * 60 + m + minutes;
+  total = ((total % 1440) + 1440) % 1440;
+  let nh = Math.floor(total / 60), nm = total % 60;
+  const np = nh >= 12 ? "PM" : "AM";
+  if (nh === 0) nh = 12;
+  else if (nh > 12) nh -= 12;
+  return `${nh}:${nm.toString().padStart(2, "0")} ${np}`;
 }
 
-// Generate context-aware reasoning
-function generateReasoning(place: Place, context: UserContext, isFirst: boolean, isLast: boolean): string {
-  if (isFirst) {
-    if (place.category === "nature") return "Perfect scenic start for the evening";
-    if (place.category === "cultural") return "Rich cultural experience to begin with";
-    if (place.category === "adventure") return "Adrenaline-pumping start to your day";
-  }
-  
-  if (isLast) {
-    if (place.category === "food") return "Delicious finale within your budget";
-    if (place.category === "dessert") return "Sweet ending to a great outing";
-    if (place.category === "nightlife") return "Perfect nightcap for the group";
-  }
-  
-  if (context.occasion === "date" && place.tags.includes("romantic")) {
-    return "Intimate ambiance, perfect for couples";
-  }
-  
-  if (context.ageGroup < 25 && place.tags.includes("youth")) {
-    return "Trendy spot popular with your age group";
-  }
-  
-  if (context.ageGroup >= 40 && place.tags.includes("family-friendly")) {
-    return "Comfortable setting, great reviews";
-  }
-  
-  return "Highly rated, fits your preferences";
+function visitDuration(p: Place): number {
+  if (p.category === "adventure" || p.category === "sports") return 90;
+  if (p.category === "entertainment") return 75;
+  if (p.category === "food") return 60;
+  if (p.category === "cultural") return 60;
+  if (p.category === "nature") return 45;
+  if (p.category === "drinks" || p.category === "nightlife") return 60;
+  if (p.category === "dessert") return 25;
+  return 45;
 }
 
-// Main generator function
+function buildReasoning(p: Place, ctx: UserContext, idx: number, total: number): string {
+  const totalCost = p.costPerPerson * ctx.groupSize;
+  const perPerson = p.costPerPerson;
+  const groupDesc = ctx.groupSize > 1 ? `${ctx.groupSize} people` : "solo";
+
+  if (p.category === "adventure" || p.category === "sports") {
+    return `₹${perPerson}/person × ${ctx.groupSize} = ₹${totalCost} total — perfect adrenaline start for ${ctx.ageGroup}-year-old group`;
+  }
+  if (p.category === "food") {
+    if (p.tags.includes("biryani")) return `₹${perPerson}/person × ${ctx.groupSize} = ₹${totalCost} total — iconic Hyderabad biryani, great for ${groupDesc}`;
+    if (p.tags.includes("bbq")) return `₹${perPerson}/person × ${ctx.groupSize} = ₹${totalCost} total — unlimited BBQ, ideal for groups`;
+    return `₹${perPerson}/person × ${ctx.groupSize} = ₹${totalCost} total — well-rated, fits the plan`;
+  }
+  if (p.category === "dessert") {
+    return idx === total - 1
+      ? `₹${perPerson}/person × ${ctx.groupSize} = ₹${totalCost} total — sweet finish to the night`
+      : `₹${perPerson}/person × ${ctx.groupSize} = ₹${totalCost} total — quick dessert stop`;
+  }
+  if (p.category === "cultural") {
+    return `₹${perPerson}/person × ${ctx.groupSize} = ₹${totalCost} total — ${p.tags.includes("iconic") ? "must-see Hyderabad landmark" : "rich heritage experience"}`;
+  }
+  if (p.category === "drinks") {
+    return ctx.occasion === "date"
+      ? `₹${perPerson}/person × ${ctx.groupSize} = ₹${totalCost} total — cozy, great for conversations`
+      : `₹${perPerson}/person × ${ctx.groupSize} = ₹${totalCost} total — chill vibe, good for groups`;
+  }
+  if (p.category === "nightlife") {
+    return `₹${perPerson}/person × ${ctx.groupSize} = ₹${totalCost} total — lively spot for the group`;
+  }
+  return `₹${perPerson}/person × ${ctx.groupSize} = ₹${totalCost} total — well-reviewed, fits the budget`;
+}
+
+// ═══════════════════════════════════════════
+// MAIN EXPORT
+// ═══════════════════════════════════════════
 export function generateMockItinerary(userIntent: string): MockItineraryStop[] {
-  const context = extractUserContext(userIntent);
-  const affordablePlaces = filterPlacesByContext(HYDERABAD_PLACES, context);
-  
-  if (affordablePlaces.length === 0) {
-    // Fallback to basic places if filtering is too strict
-    return generateBasicItinerary(context);
-  }
-  
-  let selectedPlaces: Place[] = [];
-  let totalCost = 0;
-  
-  // Strategy: Smart category selection based on age and occasion
-  let categories: string[] = [];
-  
-  if (context.ageGroup < 25) {
-    // Young crowd: adventure, gaming, food
-    categories = context.wantsFood 
-      ? ["adventure", "food", "dessert"]
-      : ["adventure", "entertainment", "food"];
-  } else if (context.ageGroup >= 40) {
-    // Older crowd: cultural, comfortable dining
-    categories = ["cultural", "food", "dessert"];
-  } else {
-    // Middle age: balanced mix
-    categories = context.wantsFood 
-      ? ["activity", "food", "drinks"]
-      : ["activity", "entertainment", "food"];
-  }
-  
-  // Special handling for youth groups - prioritize paid activities
-  for (const category of categories) {
-    let candidate = affordablePlaces.find(
-      p => p.category === category && 
-      !selectedPlaces.includes(p) && 
-      totalCost + p.baseCost <= context.budget &&
-      (context.ageGroup < 25 ? p.baseCost > 0 : true) // Young groups: skip free spots initially
-    );
-    
-    // Fallback to any place in category if no paid option
-    if (!candidate && context.ageGroup < 25) {
-      candidate = affordablePlaces.find(
-        p => p.category === category && 
-        !selectedPlaces.includes(p) && 
-        totalCost + p.baseCost <= context.budget
-      );
-    }
-    
-    if (candidate) {
-      selectedPlaces.push(candidate);
-      totalCost += candidate.baseCost;
-    }
-  }
-  
-  // Fill remaining slots
-  while (selectedPlaces.length < 3 && selectedPlaces.length < affordablePlaces.length) {
-    const remaining = affordablePlaces.find(
-      p => !selectedPlaces.includes(p) && totalCost + p.baseCost <= context.budget
-    );
-    if (remaining) {
-      selectedPlaces.push(remaining);
-      totalCost += remaining.baseCost;
-    } else {
-      break;
-    }
-  }
-  
-  // Build itinerary with times and travel
-  let currentTime = context.startTime;
-  const itinerary: MockItineraryStop[] = selectedPlaces.map((place, index) => {
-    const travelTime = index === 0
-      ? "0 min"
-      : calculateTravelTime(selectedPlaces[index - 1].coordinates, place.coordinates);
-    
-    const travelMinutes = parseInt(travelTime) || 0;
-    
-    let visitDuration = 45;
-    if (place.category === "activity") visitDuration = 60;
-    else if (place.category === "food") visitDuration = 60;
-    else if (place.category === "adventure") visitDuration = 90;
-    else if (place.category === "dessert") visitDuration = 25;
-    
-    if (index > 0) {
-      currentTime = addMinutes(currentTime, travelMinutes + visitDuration);
-    }
-    
-    return {
-      placeName: place.placeName,
-      address: place.address,
-      time: currentTime,
-      estimatedCost: place.baseCost,
-      travelTimeFromPrevious: travelTime,
-      reasoning: generateReasoning(place, context, index === 0, index === selectedPlaces.length - 1),
-    };
-  });
-  
-  return itinerary;
-}
+  const ctx = extractContext(userIntent);
+  let filtered = filterPlaces(HYDERABAD_PLACES, ctx);
 
-// Fallback basic itinerary
-function generateBasicItinerary(context: UserContext): MockItineraryStop[] {
-  const basic: Place[] = [
-    HYDERABAD_PLACES.find(p => p.placeName === "Hussain Sagar Lakeside")!,
-    HYDERABAD_PLACES.find(p => p.placeName === "Paradise Biryani")!,
-    HYDERABAD_PLACES.find(p => p.placeName === "Cream Stone Ice Cream")!,
-  ];
-  
-  let currentTime = context.startTime;
-  return basic.map((place, index) => {
-    const travelTime = index === 0 ? "0 min" : "15 min";
-    if (index > 0) currentTime = addMinutes(currentTime, 75);
-    
+  // Loosen zone filter if not enough places
+  if (filtered.length < 3) {
+    const relaxed = HYDERABAD_PLACES.filter(p =>
+      ctx.ageGroup >= p.ageMin &&
+      ctx.ageGroup <= p.ageMax &&
+      ctx.groupSize >= p.groupMin &&
+      ctx.groupSize <= p.groupMax &&
+      p.category !== "nightlife" || ctx.ageGroup >= 21
+    );
+    filtered = relaxed;
+  }
+
+  const stops = pickStops(filtered, HYDERABAD_PLACES, ctx);
+
+  // Fallback if still nothing
+  if (stops.length === 0) {
+    return [{
+      placeName: "Paradise Restaurant",
+      address: "Secunderabad",
+      time: ctx.startTime,
+      estimatedCost: 350 * ctx.groupSize,
+      travelTimeFromPrevious: "0 min",
+      reasoning: `₹350/person × ${ctx.groupSize} = ₹${350 * ctx.groupSize} — iconic Hyderabad biryani, suitable for all groups`,
+    }];
+  }
+
+  let currentTime = ctx.startTime;
+  return stops.map((place, idx) => {
+    const travel = idx === 0 ? "0 min" : travelTime(stops[idx - 1].coordinates, place.coordinates);
+    const travelMins = parseInt(travel) || 0;
+    if (idx > 0) currentTime = addMins(currentTime, travelMins + visitDuration(stops[idx - 1]));
+
     return {
       placeName: place.placeName,
       address: place.address,
       time: currentTime,
-      estimatedCost: place.baseCost,
-      travelTimeFromPrevious: travelTime,
-      reasoning: "Popular choice in Hyderabad",
+      estimatedCost: place.costPerPerson * ctx.groupSize,
+      travelTimeFromPrevious: travel,
+      reasoning: buildReasoning(place, ctx, idx, stops.length),
     };
   });
 }
