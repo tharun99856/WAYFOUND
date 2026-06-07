@@ -167,8 +167,12 @@ export default function Home() {
 
     try {
       const key = import.meta.env.VITE_GEMINI_KEY;
-      if (!key) throw new Error("no key");
+      if (!key) {
+        console.error("Gemini API key not found");
+        throw new Error("no key");
+      }
 
+      console.log("Calling Gemini API...");
       const res = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${key}`,
         {
@@ -181,16 +185,26 @@ export default function Home() {
         }
       );
 
-      if (!res.ok) throw new Error("api error");
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error("Gemini API error:", res.status, errorText);
+        throw new Error("api error");
+      }
+      
       const data = await res.json();
+      console.log("Gemini response:", data);
+      
       let text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
       text = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+      console.log("Parsed text:", text);
+      
       const parsed: GeminiStop[] = JSON.parse(text);
       const stops = await buildStops(parsed);
       setItinerary(stops);
       addMarkers(stops);
       setTimeout(() => { setShowReplan(true); setTimeout(() => setShowReplan(false), 8000); }, 3000);
-    } catch {
+    } catch (error) {
+      console.error("Error generating itinerary:", error);
       const mock = generateMockItinerary(userIntent);
       const stops = await buildStops(mock);
       setItinerary(stops);
