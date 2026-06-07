@@ -1,5 +1,4 @@
 import { useState, useRef } from "react";
-import { MapPin, ChevronRight } from "lucide-react";
 import { generateMockItinerary } from "@/lib/mockItinerary";
 
 interface ItineraryStop {
@@ -122,6 +121,15 @@ export default function Home() {
   const [showReplan, setShowReplan] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
+  const [inputMode, setInputMode] = useState<"text" | "structured">("text");
+
+  // Structured options state
+  const [groupSize, setGroupSize] = useState<number>(2);
+  const [ageGroup, setAgeGroup] = useState<string>("20s");
+  const [occasion, setOccasion] = useState<string>("");
+  const [budget, setBudget] = useState<string>("");
+  const [wantsFood, setWantsFood] = useState<boolean>(true);
+  const [experience, setExperience] = useState<string>("");
 
   const handleMapReady = (map: google.maps.Map) => {
     mapRef.current = map;
@@ -259,7 +267,25 @@ export default function Home() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); generate(intent); };
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (inputMode === "structured") {
+      const ageMap: Record<string, string> = { "teens": "17", "20s": "22", "30s": "32", "40s": "42", "50+": "52" };
+      const parts = [
+        `${groupSize} people`,
+        `age ${ageMap[ageGroup] || "22"}`,
+        occasion && occasion,
+        wantsFood ? "food" : "",
+        experience && experience,
+        budget ? `under ₹${budget}` : "",
+      ].filter(Boolean);
+      const builtIntent = parts.join(", ");
+      setIntent(builtIntent);
+      generate(builtIntent);
+    } else {
+      generate(intent);
+    }
+  };
 
   const handleNav = () => {
     if (!directionsRef.current || itinerary.length < 2) return;
@@ -579,110 +605,174 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Intent input - Enhanced */}
-        <div style={{ padding: "32px", borderBottom: "1px solid #E0DED8", flexShrink: 0, background: "white" }}>
+        {/* Intent input */}
+        <div style={{ padding: "24px 32px", borderBottom: "1px solid #E0DED8", flexShrink: 0, background: "white" }}>
           <form onSubmit={handleSubmit}>
-            <label style={{ 
-              fontFamily: "'IBM Plex Mono', monospace", 
-              fontSize: "11px", 
-              color: "#888880", 
-              textTransform: "uppercase", 
-              letterSpacing: "0.1em", 
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              marginBottom: "12px",
-              fontWeight: "600"
-            }}>
-              <span style={{ 
-                width: "3px", 
-                height: "12px", 
-                background: "#34A853", 
-                borderRadius: "2px" 
-              }} />
-              Your Intent
-            </label>
-            <input
-              type="text"
-              value={intent}
-              onChange={e => setIntent(e.target.value)}
-              placeholder="e.g., 4 people, age 19, biryani and gaming under ₹3000"
+
+            {/* Mode Toggle */}
+            <div style={{ display: "flex", gap: "0", marginBottom: "16px", background: "#F7F6F3", borderRadius: "10px", padding: "3px" }}>
+              {(["text", "structured"] as const).map(mode => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setInputMode(mode)}
+                  style={{
+                    flex: 1,
+                    padding: "8px 0",
+                    border: "none",
+                    borderRadius: "8px",
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontSize: "11px",
+                    fontWeight: "600",
+                    letterSpacing: "0.05em",
+                    cursor: "pointer",
+                    transition: "all 0.2s ease",
+                    background: inputMode === mode ? "white" : "transparent",
+                    color: inputMode === mode ? "#1A1A1A" : "#AAAAAA",
+                    boxShadow: inputMode === mode ? "0 1px 4px rgba(0,0,0,0.08)" : "none",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  {mode === "text" ? "✏️ Type" : "🎛️ Choose"}
+                </button>
+              ))}
+            </div>
+
+            {/* TEXT MODE */}
+            {inputMode === "text" && (
+              <input
+                type="text"
+                value={intent}
+                onChange={e => setIntent(e.target.value)}
+                placeholder="e.g., 4 people, age 19, biryani and gaming under ₹3000"
+                style={{
+                  width: "100%",
+                  fontFamily: "'Instrument Serif', serif",
+                  fontStyle: "italic",
+                  fontSize: "16px",
+                  color: "#1A1A1A",
+                  padding: "14px 18px",
+                  border: "2px solid #E0DED8",
+                  borderRadius: "12px",
+                  outline: "none",
+                  transition: "all 0.3s ease",
+                  background: "white",
+                  boxSizing: "border-box",
+                }}
+                onFocus={e => { e.currentTarget.style.borderColor = "#34A853"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(52,168,83,0.08)"; }}
+                onBlur={e => { e.currentTarget.style.borderColor = "#E0DED8"; e.currentTarget.style.boxShadow = "none"; }}
+              />
+            )}
+
+            {/* STRUCTURED MODE */}
+            {inputMode === "structured" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+
+                {/* Group size */}
+                <div>
+                  <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "10px", color: "#AAAAAA", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 6px 0" }}>Group Size</p>
+                  <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                    {[1,2,3,4,5,6,8,10].map(n => (
+                      <button key={n} type="button" onClick={() => setGroupSize(n)}
+                        style={{ padding: "6px 14px", border: `1.5px solid ${groupSize === n ? "#34A853" : "#E0DED8"}`, borderRadius: "8px", background: groupSize === n ? "rgba(52,168,83,0.08)" : "white", color: groupSize === n ? "#34A853" : "#666", fontFamily: "'IBM Plex Mono', monospace", fontSize: "12px", cursor: "pointer", fontWeight: groupSize === n ? "700" : "400" }}>
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Age group */}
+                <div>
+                  <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "10px", color: "#AAAAAA", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 6px 0" }}>Age Group</p>
+                  <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                    {["teens", "20s", "30s", "40s", "50+"].map(a => (
+                      <button key={a} type="button" onClick={() => setAgeGroup(a)}
+                        style={{ padding: "6px 14px", border: `1.5px solid ${ageGroup === a ? "#34A853" : "#E0DED8"}`, borderRadius: "8px", background: ageGroup === a ? "rgba(52,168,83,0.08)" : "white", color: ageGroup === a ? "#34A853" : "#666", fontFamily: "'IBM Plex Mono', monospace", fontSize: "12px", cursor: "pointer", fontWeight: ageGroup === a ? "700" : "400" }}>
+                        {a}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Occasion */}
+                <div>
+                  <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "10px", color: "#AAAAAA", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 6px 0" }}>Occasion</p>
+                  <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                    {["friends hangout", "date night", "family day", "birthday", "team outing", "solo"].map(o => (
+                      <button key={o} type="button" onClick={() => setOccasion(occasion === o ? "" : o)}
+                        style={{ padding: "6px 12px", border: `1.5px solid ${occasion === o ? "#34A853" : "#E0DED8"}`, borderRadius: "8px", background: occasion === o ? "rgba(52,168,83,0.08)" : "white", color: occasion === o ? "#34A853" : "#666", fontFamily: "'Instrument Serif', serif", fontSize: "13px", cursor: "pointer", fontWeight: occasion === o ? "700" : "400" }}>
+                        {o}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Experience type */}
+                <div>
+                  <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "10px", color: "#AAAAAA", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 6px 0" }}>Vibe</p>
+                  <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                    {["go-karting", "food trail", "cafe hopping", "heritage walk", "night out", "shopping day", "adventure", "gaming"].map(v => (
+                      <button key={v} type="button" onClick={() => setExperience(experience === v ? "" : v)}
+                        style={{ padding: "6px 12px", border: `1.5px solid ${experience === v ? "#34A853" : "#E0DED8"}`, borderRadius: "8px", background: experience === v ? "rgba(52,168,83,0.08)" : "white", color: experience === v ? "#34A853" : "#666", fontFamily: "'Instrument Serif', serif", fontSize: "13px", cursor: "pointer", fontWeight: experience === v ? "700" : "400" }}>
+                        {v}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Food toggle + Budget */}
+                <div style={{ display: "flex", gap: "12px", alignItems: "flex-end" }}>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "10px", color: "#AAAAAA", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 6px 0" }}>Budget (₹ total)</p>
+                    <input type="number" value={budget} onChange={e => setBudget(e.target.value)} placeholder="e.g. 3000"
+                      style={{ width: "100%", padding: "8px 12px", border: "1.5px solid #E0DED8", borderRadius: "8px", fontFamily: "'IBM Plex Mono', monospace", fontSize: "13px", outline: "none", boxSizing: "border-box" }}
+                      onFocus={e => e.currentTarget.style.borderColor = "#34A853"}
+                      onBlur={e => e.currentTarget.style.borderColor = "#E0DED8"}
+                    />
+                  </div>
+                  <div>
+                    <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "10px", color: "#AAAAAA", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 6px 0" }}>Include food</p>
+                    <button type="button" onClick={() => setWantsFood(!wantsFood)}
+                      style={{ padding: "8px 16px", border: `1.5px solid ${wantsFood ? "#34A853" : "#E0DED8"}`, borderRadius: "8px", background: wantsFood ? "rgba(52,168,83,0.08)" : "white", color: wantsFood ? "#34A853" : "#999", fontFamily: "'IBM Plex Mono', monospace", fontSize: "12px", cursor: "pointer", fontWeight: "600" }}>
+                      {wantsFood ? "✓ Yes" : "No"}
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={inputMode === "text" ? (!intent.trim() || loading) : loading}
               style={{
                 width: "100%",
-                fontFamily: "'Instrument Serif', serif",
-                fontStyle: "italic",
-                fontSize: "17px",
-                color: "#1A1A1A",
-                padding: "16px 20px",
-                border: "2px solid #E0DED8",
-                borderRadius: "16px",
-                outline: "none",
-                transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                background: "linear-gradient(to bottom, white, #FDFCFA)",
-                boxShadow: "0 2px 8px rgba(0, 0, 0, 0.04)"
+                marginTop: "14px",
+                fontFamily: "'IBM Plex Mono', monospace",
+                fontSize: "13px",
+                fontWeight: "600",
+                padding: "13px 24px",
+                background: loading ? "#CCCCCC" : "linear-gradient(135deg, #34A853, #2d8f45)",
+                color: "white",
+                border: "none",
+                borderRadius: "10px",
+                cursor: loading ? "not-allowed" : "pointer",
+                transition: "all 0.3s ease",
+                boxShadow: loading ? "none" : "0 4px 12px rgba(52, 168, 83, 0.25)",
+                letterSpacing: "0.05em",
+                textTransform: "uppercase",
               }}
-              onFocus={(e) => {
-                e.currentTarget.style.borderColor = "#34A853";
-                e.currentTarget.style.boxShadow = "0 4px 16px rgba(52, 168, 83, 0.12)";
-                e.currentTarget.style.transform = "translateY(-2px)";
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.borderColor = "#E0DED8";
-                e.currentTarget.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.04)";
-                e.currentTarget.style.transform = "translateY(0)";
-              }}
-            />
-            <div style={{ display: "flex", gap: "12px", marginTop: "16px" }}>
-              <button
-                type="submit"
-                disabled={!intent.trim() || loading}
-                style={{
-                  flex: 1,
-                  fontFamily: "'IBM Plex Mono', monospace",
-                  fontSize: "14px",
-                  fontWeight: "600",
-                  padding: "14px 24px",
-                  background: loading ? "#CCCCCC" : "linear-gradient(135deg, #34A853, #2d8f45)",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "12px",
-                  cursor: loading || !intent.trim() ? "not-allowed" : "pointer",
-                  transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                  boxShadow: loading ? "none" : "0 4px 12px rgba(52, 168, 83, 0.25)",
-                  letterSpacing: "0.03em",
-                  textTransform: "uppercase"
-                }}
-                onMouseEnter={(e) => {
-                  if (!loading && intent.trim()) {
-                    e.currentTarget.style.transform = "translateY(-2px)";
-                    e.currentTarget.style.boxShadow = "0 6px 20px rgba(52, 168, 83, 0.35)";
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = "translateY(0)";
-                  e.currentTarget.style.boxShadow = loading ? "none" : "0 4px 12px rgba(52, 168, 83, 0.25)";
-                }}
-              >
-                {loading ? (
-                  <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
-                    <span style={{ display: "inline-block", width: "14px", height: "14px", border: "2px solid white", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
-                    Planning...
-                  </span>
-                ) : "Generate Itinerary"}
-              </button>
-            </div>
-            <p style={{
-              fontFamily: "'Instrument Serif', serif",
-              fontSize: "12px",
-              fontStyle: "italic",
-              color: "#AAAAAA",
-              margin: "12px 0 0 0",
-              display: "flex",
-              alignItems: "center",
-              gap: "6px"
-            }}>
-              <span style={{ fontSize: "14px" }}>💡</span>
-              Specify: group size, age, activities, budget. Defaults: ₹1500/person, 7 PM
+            >
+              {loading ? (
+                <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+                  <span style={{ display: "inline-block", width: "13px", height: "13px", border: "2px solid white", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                  Planning...
+                </span>
+              ) : "Generate Itinerary →"}
+            </button>
+
+            <p style={{ fontFamily: "'Instrument Serif', serif", fontSize: "11px", fontStyle: "italic", color: "#CCCCCC", margin: "8px 0 0 0", textAlign: "center" }}>
+              Defaults: ₹2000 total · 7 PM start · Hyderabad
             </p>
           </form>
         </div>
@@ -751,16 +841,10 @@ export default function Home() {
               {/* Actions */}
               <div style={{ marginTop: "32px", paddingTop: "24px", borderTop: "0.5px solid #E0DED8", display: "flex", gap: "10px" }}>
                 <button
-                  onClick={handleNav}
-                  style={{ flex: 1, padding: "12px", backgroundColor: "#34A853", color: "#FFFFFF", fontFamily: "'IBM Plex Mono', monospace", fontSize: "13px", border: "none", borderRadius: "4px", cursor: "pointer" }}
-                >
-                  Start navigation →
-                </button>
-                <button
                   onClick={() => setItinerary([])}
-                  style={{ padding: "12px 20px", backgroundColor: "transparent", color: "#1A1A1A", fontFamily: "'IBM Plex Mono', monospace", fontSize: "13px", border: "0.5px solid #E0DED8", borderRadius: "4px", cursor: "pointer" }}
+                  style={{ flex: 1, padding: "12px 20px", backgroundColor: "transparent", color: "#888880", fontFamily: "'IBM Plex Mono', monospace", fontSize: "12px", border: "1px solid #E0DED8", borderRadius: "8px", cursor: "pointer", letterSpacing: "0.05em" }}
                 >
-                  Reset
+                  ↺ Reset
                 </button>
               </div>
 
