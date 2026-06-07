@@ -916,8 +916,9 @@ function extractUserContext(intent: string): UserContext {
 // Smart filtering based on context
 function filterPlacesByContext(places: Place[], context: UserContext): Place[] {
   return places.filter(place => {
-    // Budget check
-    if (place.baseCost > context.budget / 2) return false;
+    // Budget check - more lenient for groups
+    const budgetLimit = context.groupSize > 3 ? context.budget * 0.6 : context.budget / 2;
+    if (place.baseCost > budgetLimit) return false;
     
     // Age range check
     if (context.ageGroup < place.ageRange[0] || context.ageGroup > place.ageRange[1]) return false;
@@ -930,6 +931,11 @@ function filterPlacesByContext(places: Place[], context: UserContext): Place[] {
       return place.tags.includes("upscale");
     }
     if (context.occasion === "family" && place.category === "nightlife") return false;
+    
+    // Youth preference: avoid free nature spots unless explicitly requested
+    if (context.ageGroup < 25 && place.baseCost === 0 && place.category === "nature") {
+      return false;
+    }
     
     return true;
   });
@@ -1024,17 +1030,41 @@ export function generateMockItinerary(userIntent: string): MockItineraryStop[] {
   let selectedPlaces: Place[] = [];
   let totalCost = 0;
   
-  // Strategy: Pick diverse categories
-  const categories = context.wantsFood 
-    ? ["activity", "food", "dessert"]
-    : ["activity", "entertainment", "food"];
+  // Strategy: Smart category selection based on age and occasion
+  let categories: string[] = [];
   
+  if (context.ageGroup < 25) {
+    // Young crowd: adventure, gaming, food
+    categories = context.wantsFood 
+      ? ["adventure", "food", "dessert"]
+      : ["adventure", "entertainment", "food"];
+  } else if (context.ageGroup >= 40) {
+    // Older crowd: cultural, comfortable dining
+    categories = ["cultural", "food", "dessert"];
+  } else {
+    // Middle age: balanced mix
+    categories = context.wantsFood 
+      ? ["activity", "food", "drinks"]
+      : ["activity", "entertainment", "food"];
+  }
+  
+  // Special handling for youth groups - prioritize paid activities
   for (const category of categories) {
-    const candidate = affordablePlaces.find(
+    let candidate = affordablePlaces.find(
       p => p.category === category && 
       !selectedPlaces.includes(p) && 
-      totalCost + p.baseCost <= context.budget
+      totalCost + p.baseCost <= context.budget &&
+      (context.ageGroup < 25 ? p.baseCost > 0 : true) // Young groups: skip free spots initially
     );
+    
+    // Fallback to any place in category if no paid option
+    if (!candidate && context.ageGroup < 25) {
+      candidate = affordablePlaces.find(
+        p => p.category === category && 
+        !selectedPlaces.includes(p) && 
+        totalCost + p.baseCost <= context.budget
+      );
+    }
     
     if (candidate) {
       selectedPlaces.push(candidate);
