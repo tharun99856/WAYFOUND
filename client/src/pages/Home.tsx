@@ -166,15 +166,15 @@ export default function Home() {
     setIsOffline(false);
 
     try {
-      const key = import.meta.env.VITE_GROK_KEY;
+      const key = import.meta.env.VITE_GROQ_KEY;
       if (!key) {
-        console.error("Grok API key not found");
+        console.error("Groq API key not found");
         throw new Error("no key");
       }
 
-      console.log("Calling Grok API...");
+      console.log("Calling Groq API...");
       const res = await fetch(
-        "https://api.x.ai/v1/chat/completions",
+        "https://api.groq.com/openai/v1/chat/completions",
         {
           method: "POST",
           headers: { 
@@ -182,7 +182,7 @@ export default function Home() {
             "Authorization": `Bearer ${key}`,
           },
           body: JSON.stringify({
-            model: "grok-3-mini",
+            model: "llama-3.3-70b-versatile",
             messages: [
               { role: "system", content: SYSTEM_INSTRUCTION },
               { role: "user", content: userIntent }
@@ -195,12 +195,12 @@ export default function Home() {
 
       if (!res.ok) {
         const errorText = await res.text();
-        console.error("Grok API error:", res.status, errorText);
+        console.error("Groq API error:", res.status, errorText);
         throw new Error("api error");
       }
       
       const data = await res.json();
-      console.log("Grok response:", data);
+      console.log("Groq response:", data);
       
       let text = data.choices?.[0]?.message?.content ?? "";
       text = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
