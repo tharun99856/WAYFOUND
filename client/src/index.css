@@ -43,74 +43,81 @@
 }
 
 :root {
-  --primary: var(--color-blue-700);
-  --primary-foreground: var(--color-blue-50);
-  --sidebar-primary: var(--color-blue-600);
-  --sidebar-primary-foreground: var(--color-blue-50);
-  --chart-1: var(--color-blue-300);
-  --chart-2: var(--color-blue-500);
-  --chart-3: var(--color-blue-600);
-  --chart-4: var(--color-blue-700);
-  --chart-5: var(--color-blue-800);
-  --radius: 0.65rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.235 0.015 65);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.235 0.015 65);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.235 0.015 65);
-  --secondary: oklch(0.98 0.001 286.375);
-  --secondary-foreground: oklch(0.4 0.015 65);
-  --muted: oklch(0.967 0.001 286.375);
-  --muted-foreground: oklch(0.552 0.016 285.938);
-  --accent: oklch(0.967 0.001 286.375);
-  --accent-foreground: oklch(0.141 0.005 285.823);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(0.92 0.004 286.32);
-  --input: oklch(0.92 0.004 286.32);
-  --ring: oklch(0.623 0.214 259.815);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.235 0.015 65);
-  --sidebar-accent: oklch(0.967 0.001 286.375);
-  --sidebar-accent-foreground: oklch(0.141 0.005 285.823);
-  --sidebar-border: oklch(0.92 0.004 286.32);
-  --sidebar-ring: oklch(0.623 0.214 259.815);
+  /* Maps Copilot Design System */
+  /* Colors: Clean editorial, Google Maps green accent only */
+  --primary: #34A853; /* Google Maps green */
+  --primary-foreground: #FFFFFF;
+  --sidebar-primary: #34A853;
+  --sidebar-primary-foreground: #FFFFFF;
+  --chart-1: #34A853;
+  --chart-2: #34A853;
+  --chart-3: #34A853;
+  --chart-4: #34A853;
+  --chart-5: #34A853;
+  --radius: 0px; /* No rounded corners */
+  --background: #F7F6F3; /* Off-white background */
+  --foreground: #1A1A1A; /* Dark text */
+  --card: #FFFFFF; /* White surfaces */
+  --card-foreground: #1A1A1A;
+  --popover: #FFFFFF;
+  --popover-foreground: #1A1A1A;
+  --secondary: #F7F6F3;
+  --secondary-foreground: #1A1A1A;
+  --muted: #888880; /* Muted labels */
+  --muted-foreground: #888880;
+  --accent: #34A853; /* Google Maps green */
+  --accent-foreground: #FFFFFF;
+  --destructive: #F5A623; /* Amber for alerts */
+  --destructive-foreground: #1A1A1A;
+  --border: #E0DED8; /* Subtle borders */
+  --input: #FFFFFF;
+  --ring: #34A853;
+  --sidebar: #F7F6F3;
+  --sidebar-foreground: #1A1A1A;
+  --sidebar-accent: #34A853;
+  --sidebar-accent-foreground: #FFFFFF;
+  --sidebar-border: #E0DED8;
+  --sidebar-ring: #34A853;
+  /* Typography */
+  --font-serif: 'Instrument Serif', serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+  --font-sans: system-ui, -apple-system, sans-serif;
 }
 
 .dark {
-  --primary: var(--color-blue-700);
-  --primary-foreground: var(--color-blue-50);
-  --sidebar-primary: var(--color-blue-500);
-  --sidebar-primary-foreground: var(--color-blue-50);
-  --background: oklch(0.141 0.005 285.823);
-  --foreground: oklch(0.85 0.005 65);
-  --card: oklch(0.21 0.006 285.885);
-  --card-foreground: oklch(0.85 0.005 65);
-  --popover: oklch(0.21 0.006 285.885);
-  --popover-foreground: oklch(0.85 0.005 65);
-  --secondary: oklch(0.24 0.006 286.033);
-  --secondary-foreground: oklch(0.7 0.005 65);
-  --muted: oklch(0.274 0.006 286.033);
-  --muted-foreground: oklch(0.705 0.015 286.067);
-  --accent: oklch(0.274 0.006 286.033);
-  --accent-foreground:  oklch(0.92 0.005 65);
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.488 0.243 264.376);
-  --chart-1: var(--color-blue-300);
-  --chart-2: var(--color-blue-500);
-  --chart-3: var(--color-blue-600);
-  --chart-4: var(--color-blue-700);
-  --chart-5: var(--color-blue-800);
-  --sidebar: oklch(0.21 0.006 285.885);
-  --sidebar-foreground: oklch(0.85 0.005 65);
-  --sidebar-accent: oklch(0.274 0.006 286.033);
-  --sidebar-accent-foreground:  oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.488 0.243 264.376);
+  /* No dark mode for Maps Copilot */
+  --primary: #34A853;
+  --primary-foreground: #FFFFFF;
+  --sidebar-primary: #34A853;
+  --sidebar-primary-foreground: #FFFFFF;
+  --background: #F7F6F3;
+  --foreground: #1A1A1A;
+  --card: #FFFFFF;
+  --card-foreground: #1A1A1A;
+  --popover: #FFFFFF;
+  --popover-foreground: #1A1A1A;
+  --secondary: #F7F6F3;
+  --secondary-foreground: #1A1A1A;
+  --muted: #888880;
+  --muted-foreground: #888880;
+  --accent: #34A853;
+  --accent-foreground: #FFFFFF;
+  --destructive: #F5A623;
+  --destructive-foreground: #1A1A1A;
+  --border: #E0DED8;
+  --input: #FFFFFF;
+  --ring: #34A853;
+  --chart-1: #34A853;
+  --chart-2: #34A853;
+  --chart-3: #34A853;
+  --chart-4: #34A853;
+  --chart-5: #34A853;
+  --sidebar: #F7F6F3;
+  --sidebar-foreground: #1A1A1A;
+  --sidebar-accent: #34A853;
+  --sidebar-accent-foreground: #FFFFFF;
+  --sidebar-border: #E0DED8;
+  --sidebar-ring: #34A853;
 }
 
 @layer base {
@@ -119,6 +126,22 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-sans);
+  }
+  /* Typography */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-serif);
+  }
+  .font-serif {
+    font-family: var(--font-serif);
+  }
+  .font-mono {
+    font-family: var(--font-mono);
+  }
+  /* Input focus state */
+  input:focus {
+    outline: none;
+    border-color: #34A853;
   }
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]),
