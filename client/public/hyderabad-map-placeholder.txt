@@ -1,0 +1,3 @@
+Save your Hyderabad map image here as: hyderabad-map.jpg
+
+The image should be the black and white street map illustration of Hyderabad.

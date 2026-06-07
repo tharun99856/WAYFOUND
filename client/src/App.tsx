@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
+import LaunchScreen from "./components/LaunchScreen";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 
@@ -24,6 +26,8 @@ function Router() {
 // - If you want to make theme switchable, pass `switchable` ThemeProvider and use `useTheme` hook
 
 function App() {
+  const [showLaunch, setShowLaunch] = useState(true);
+
   return (
     <ErrorBoundary>
       <ThemeProvider
@@ -31,6 +35,7 @@ function App() {
       >
         <TooltipProvider>
           <Toaster />
+          {showLaunch && <LaunchScreen onComplete={() => setShowLaunch(false)} />}
           <Router />
         </TooltipProvider>
       </ThemeProvider>

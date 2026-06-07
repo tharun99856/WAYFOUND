@@ -27,69 +27,12 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
 }
 
 :root {
-  /* Maps Copilot Design System */
-  /* Colors: Clean editorial, Google Maps green accent only */
-  --primary: #34A853; /* Google Maps green */
-  --primary-foreground: #FFFFFF;
-  --sidebar-primary: #34A853;
-  --sidebar-primary-foreground: #FFFFFF;
-  --chart-1: #34A853;
-  --chart-2: #34A853;
-  --chart-3: #34A853;
-  --chart-4: #34A853;
-  --chart-5: #34A853;
-  --radius: 0px; /* No rounded corners */
-  --background: #F7F6F3; /* Off-white background */
-  --foreground: #1A1A1A; /* Dark text */
-  --card: #FFFFFF; /* White surfaces */
-  --card-foreground: #1A1A1A;
-  --popover: #FFFFFF;
-  --popover-foreground: #1A1A1A;
-  --secondary: #F7F6F3;
-  --secondary-foreground: #1A1A1A;
-  --muted: #888880; /* Muted labels */
-  --muted-foreground: #888880;
-  --accent: #34A853; /* Google Maps green */
-  --accent-foreground: #FFFFFF;
-  --destructive: #F5A623; /* Amber for alerts */
-  --destructive-foreground: #1A1A1A;
-  --border: #E0DED8; /* Subtle borders */
-  --input: #FFFFFF;
-  --ring: #34A853;
-  --sidebar: #F7F6F3;
-  --sidebar-foreground: #1A1A1A;
-  --sidebar-accent: #34A853;
-  --sidebar-accent-foreground: #FFFFFF;
-  --sidebar-border: #E0DED8;
-  --sidebar-ring: #34A853;
-  /* Typography */
-  --font-serif: 'Instrument Serif', serif;
-  --font-mono: 'IBM Plex Mono', monospace;
-  --font-sans: system-ui, -apple-system, sans-serif;
-}
-
-.dark {
-  /* No dark mode for Maps Copilot */
+  --radius: 0.5rem;
   --primary: #34A853;
   --primary-foreground: #FFFFFF;
-  --sidebar-primary: #34A853;
-  --sidebar-primary-foreground: #FFFFFF;
   --background: #F7F6F3;
   --foreground: #1A1A1A;
   --card: #FFFFFF;
@@ -98,113 +41,48 @@
   --popover-foreground: #1A1A1A;
   --secondary: #F7F6F3;
   --secondary-foreground: #1A1A1A;
-  --muted: #888880;
+  --muted: #F7F6F3;
   --muted-foreground: #888880;
   --accent: #34A853;
   --accent-foreground: #FFFFFF;
-  --destructive: #F5A623;
-  --destructive-foreground: #1A1A1A;
+  --destructive: #EA4335;
+  --destructive-foreground: #FFFFFF;
   --border: #E0DED8;
   --input: #FFFFFF;
   --ring: #34A853;
-  --chart-1: #34A853;
-  --chart-2: #34A853;
-  --chart-3: #34A853;
-  --chart-4: #34A853;
-  --chart-5: #34A853;
-  --sidebar: #F7F6F3;
-  --sidebar-foreground: #1A1A1A;
-  --sidebar-accent: #34A853;
-  --sidebar-accent-foreground: #FFFFFF;
-  --sidebar-border: #E0DED8;
-  --sidebar-ring: #34A853;
 }
 
 @layer base {
   * {
-    border-color: #E0DED8;
-    outline-color: #34A853;
+    @apply border-border outline-ring/50;
   }
   body {
-    background-color: #F7F6F3;
-    color: #1A1A1A;
-    font-family: var(--font-sans);
-  }
-  /* Typography */
-  h1, h2, h3, h4, h5, h6 {
-    font-family: var(--font-serif);
-    color: #1A1A1A;
-  }
-  .font-serif {
-    font-family: var(--font-serif);
-  }
-  .font-mono {
-    font-family: var(--font-mono);
-  }
-  /* Input focus state - only border color changes */
-  input:focus {
-    outline: none;
-    border-color: #34A853;
-  }
-  input::placeholder {
-    color: #888880;
-  }
-  /* Remove all default button styles */
-  button {
-    font-family: var(--font-mono);
+    @apply bg-background text-foreground;
+    font-family: system-ui, sans-serif;
   }
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]),
-  [type="button"]:not(:disabled),
-  [type="submit"]:not(:disabled),
-  [type="reset"]:not(:disabled),
-  a[href],
-  select:not(:disabled),
-  input[type="checkbox"]:not(:disabled),
-  input[type="radio"]:not(:disabled) {
+  a[href] {
     cursor: pointer;
   }
 }
 
 @layer components {
-  /**
-   * Custom container utility that centers content and adds responsive padding.
-   *
-   * This overrides Tailwind's default container behavior to:
-   * - Auto-center content (mx-auto)
-   * - Add responsive horizontal padding
-   * - Set max-width for large screens
-   *
-   * Usage: <div className="container">...</div>
-   *
-   * For custom widths, use max-w-* utilities directly:
-   * <div className="max-w-6xl mx-auto px-4">...</div>
-   */
   .container {
     width: 100%;
     margin-left: auto;
     margin-right: auto;
-    padding-left: 1rem; /* 16px - mobile padding */
+    padding-left: 1rem;
     padding-right: 1rem;
   }
-
   .flex {
     min-height: 0;
     min-width: 0;
   }
-
   @media (min-width: 640px) {
-    .container {
-      padding-left: 1.5rem; /* 24px - tablet padding */
-      padding-right: 1.5rem;
-    }
+    .container { padding-left: 1.5rem; padding-right: 1.5rem; }
   }
-
   @media (min-width: 1024px) {
-    .container {
-      padding-left: 2rem; /* 32px - desktop padding */
-      padding-right: 2rem;
-      max-width: 1280px; /* Standard content width */
-    }
+    .container { padding-left: 2rem; padding-right: 2rem; max-width: 1280px; }
   }
 }
