@@ -122,15 +122,18 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    border-color: #E0DED8;
+    outline-color: #34A853;
   }
   body {
-    @apply bg-background text-foreground;
+    background-color: #F7F6F3;
+    color: #1A1A1A;
     font-family: var(--font-sans);
   }
   /* Typography */
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-serif);
+    color: #1A1A1A;
   }
   .font-serif {
     font-family: var(--font-serif);
@@ -138,10 +141,17 @@
   .font-mono {
     font-family: var(--font-mono);
   }
-  /* Input focus state */
+  /* Input focus state - only border color changes */
   input:focus {
     outline: none;
     border-color: #34A853;
+  }
+  input::placeholder {
+    color: #888880;
+  }
+  /* Remove all default button styles */
+  button {
+    font-family: var(--font-mono);
   }
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]),
@@ -152,7 +162,7 @@
   select:not(:disabled),
   input[type="checkbox"]:not(:disabled),
   input[type="radio"]:not(:disabled) {
-    @apply cursor-pointer;
+    cursor: pointer;
   }
 }
 
