@@ -64,12 +64,13 @@ GROUP CONTEXT RULES:
 - Large groups 8+: Ramoji Film City, turfs, Barbeque Nation, escape rooms, Smaaash
 
 BUDGET RULES — CRITICAL:
-Budget = TOTAL spend for ENTIRE GROUP combined. Never per person.
-estimatedCost = total rupees at that stop by ALL people together.
-Maximise budget — don't leave more than 10% unspent.
-Show per-person math in reasoning only.
-Example: 4 people ₹3000 → go-karting ₹600pp = estimatedCost: 2400
-Default: ₹1500 total budget if none stated.
+Budget stated by user = TOTAL for the ENTIRE GROUP. Never per person.
+estimatedCost in JSON = rupees spent at that stop by ALL people combined.
+Sum of ALL estimatedCost values must be ≤ total budget. Do NOT exceed.
+Aim to use 85-100% of budget across all stops. Don't leave more than 15% unspent.
+Per-person math goes in reasoning only: "₹600/person × 4 = ₹2400 total"
+Example: 4 people ₹3000 budget → stop1: 2400 + stop2: 400 + stop3: 200 = ₹3000 ✓
+Default: ₹2000 total budget if none stated.
 
 TIME AND TRAFFIC RULES:
 Default start: 7:00 PM unless stated.
@@ -122,6 +123,8 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
   const [inputMode, setInputMode] = useState<"text" | "structured">("text");
+  const [lastGroupSize, setLastGroupSize] = useState<number>(1);
+  const [lastTotalBudget, setLastTotalBudget] = useState<number>(0);
 
   // Structured options state
   const [groupSize, setGroupSize] = useState<number>(2);
@@ -208,6 +211,14 @@ export default function Home() {
     if (!userIntent.trim()) return;
     setLoading(true);
     setIsOffline(false);
+
+    // Extract group size & budget from intent for display
+    const grpMatch = userIntent.match(/(\d+)\s*(?:people|ppl|persons|friends|guys|members)/i);
+    const detectedGroup = grpMatch ? parseInt(grpMatch[1]) : groupSize;
+    const budgetMatch = userIntent.match(/(?:under|below|within|₹|rs\.?)\s*(\d+)/i) || userIntent.match(/(\d{3,})/);
+    const detectedBudget = budgetMatch ? parseInt(budgetMatch[1]) : (budget ? parseInt(budget) : 2000);
+    setLastGroupSize(detectedGroup);
+    setLastTotalBudget(detectedBudget);
 
     // Show mock instantly so user sees something immediately
     const mock = generateMockItinerary(userIntent);
@@ -772,36 +783,65 @@ export default function Home() {
           )}
 
           {/* Itinerary */}
-          {!loading && itinerary.length > 0 && (
+          {itinerary.length > 0 && (
             <div>
-              <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "11px", color: "#888880", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 24px 0" }}>
-                {itinerary.length} stops · optimised route
-              </p>
+              {/* Summary bar */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+                <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "11px", color: "#888880", textTransform: "uppercase", letterSpacing: "0.08em", margin: 0 }}>
+                  {itinerary.length} stops · optimised route
+                </p>
+                {lastTotalBudget > 0 && (() => {
+                  const totalSpent = itinerary.reduce((sum, s) => sum + parseInt(s.cost.replace("₹", "").replace(/,/g, "") || "0"), 0);
+                  const pct = Math.round((totalSpent / lastTotalBudget) * 100);
+                  return (
+                    <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "10px", color: pct > 100 ? "#E53E3E" : "#34A853", margin: 0 }}>
+                      ₹{totalSpent.toLocaleString()} / ₹{lastTotalBudget.toLocaleString()} ({pct}%)
+                    </p>
+                  );
+                })()}
+              </div>
 
               {/* Timeline */}
               <div style={{ position: "relative" }}>
                 <div style={{ position: "absolute", left: "8px", top: "8px", bottom: "8px", width: "1px", backgroundColor: "#E0DED8" }} />
                 <div style={{ display: "flex", flexDirection: "column", gap: "28px" }}>
-                  {itinerary.map((stop, i) => (
-                    <div
-                      key={stop.id}
-                      style={{ paddingLeft: "32px", position: "relative", animation: `fadeUp 0.3s ease-out ${i * 60}ms both` }}
-                    >
-                      <div style={{ position: "absolute", left: "3px", top: "4px", width: "10px", height: "10px", borderRadius: "50%", backgroundColor: "#34A853" }} />
-                      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: "8px", marginBottom: "4px" }}>
-                        <span style={{ fontFamily: "'Instrument Serif', serif", fontSize: "16px", color: "#1A1A1A" }}>{stop.place}</span>
-                        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "12px", color: "#888880", whiteSpace: "nowrap" }}>{stop.time} · {stop.cost}</span>
-                      </div>
-                      {stop.travelTime && stop.travelTime !== "0 min" && (
-                        <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "11px", color: "#AAAAAA", margin: "0 0 4px 0" }}>
-                          {stop.travelTime} by cab
+                  {itinerary.map((stop, i) => {
+                    const rawCost = parseInt(stop.cost.replace("₹", "").replace(/,/g, "") || "0");
+                    const perPerson = lastGroupSize > 1 ? Math.round(rawCost / lastGroupSize) : 0;
+                    return (
+                      <div key={stop.id} style={{ paddingLeft: "32px", position: "relative", animation: `fadeUp 0.3s ease-out ${i * 60}ms both` }}>
+                        <div style={{ position: "absolute", left: "3px", top: "4px", width: "10px", height: "10px", borderRadius: "50%", backgroundColor: "#34A853" }} />
+                        
+                        {/* Place + time */}
+                        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: "8px", marginBottom: "2px" }}>
+                          <span style={{ fontFamily: "'Instrument Serif', serif", fontSize: "16px", color: "#1A1A1A" }}>{stop.place}</span>
+                          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "11px", color: "#888880", whiteSpace: "nowrap" }}>{stop.time}</span>
+                        </div>
+
+                        {/* Cost breakdown */}
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+                          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "12px", color: "#1A1A1A", fontWeight: "600" }}>
+                            ₹{rawCost.toLocaleString()} total
+                          </span>
+                          {lastGroupSize > 1 && perPerson > 0 && (
+                            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "10px", color: "#AAAAAA" }}>
+                              ₹{perPerson.toLocaleString()}/person × {lastGroupSize}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Travel time */}
+                        {stop.travelTime && stop.travelTime !== "0 min" && (
+                          <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "11px", color: "#AAAAAA", margin: "0 0 4px 0" }}>
+                            🚗 {stop.travelTime} by cab
+                          </p>
+                        )}
+                        <p style={{ fontFamily: "'Instrument Serif', serif", fontStyle: "italic", fontSize: "13px", color: "#AAAAAA", margin: 0, lineHeight: 1.5 }}>
+                          {stop.reasoning}
                         </p>
-                      )}
-                      <p style={{ fontFamily: "'Instrument Serif', serif", fontStyle: "italic", fontSize: "13px", color: "#AAAAAA", margin: 0, lineHeight: 1.5 }}>
-                        {stop.reasoning}
-                      </p>
-                    </div>
-                  ))}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
