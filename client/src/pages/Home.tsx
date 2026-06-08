@@ -209,14 +209,17 @@ export default function Home() {
     setLoading(true);
     setIsOffline(false);
 
+    // Show mock instantly so user sees something immediately
+    const mock = generateMockItinerary(userIntent);
+    const mockStops = await buildStops(mock);
+    setItinerary(mockStops);
+    setIsOffline(true);
+    addMarkers(mockStops);
+
     try {
       const key = import.meta.env.VITE_GROQ_KEY;
-      if (!key) {
-        console.error("Groq API key not found");
-        throw new Error("no key");
-      }
+      if (!key) throw new Error("no key");
 
-      console.log("Calling Groq API...");
       const res = await fetch(
         "https://api.groq.com/openai/v1/chat/completions",
         {
@@ -226,42 +229,33 @@ export default function Home() {
             "Authorization": `Bearer ${key}`,
           },
           body: JSON.stringify({
-            model: "llama-3.3-70b-versatile",
+            model: "llama-3.1-8b-instant", // fastest Groq model
             messages: [
               { role: "system", content: SYSTEM_INSTRUCTION },
               { role: "user", content: userIntent }
             ],
             temperature: 0.7,
-            max_tokens: 2048,
+            max_tokens: 1024, // reduced for speed
           }),
         }
       );
 
-      if (!res.ok) {
-        const errorText = await res.text();
-        console.error("Groq API error:", res.status, errorText);
-        throw new Error("api error");
-      }
+      if (!res.ok) throw new Error("api error");
       
       const data = await res.json();
-      console.log("Groq response:", data);
-      
       let text = data.choices?.[0]?.message?.content ?? "";
       text = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-      console.log("Parsed text:", text);
       
       const parsed: GeminiStop[] = JSON.parse(text);
-      const stops = await buildStops(parsed);
-      setItinerary(stops);
-      addMarkers(stops);
-      setTimeout(() => { setShowReplan(true); setTimeout(() => setShowReplan(false), 8000); }, 3000);
+      const aiStops = await buildStops(parsed);
+      // Swap mock with real AI results
+      setItinerary(aiStops);
+      setIsOffline(false);
+      addMarkers(aiStops);
+      setTimeout(() => { setShowReplan(true); setTimeout(() => setShowReplan(false), 8000); }, 1000);
     } catch (error) {
-      console.error("Error generating itinerary, falling back to mock:", error);
-      const mock = generateMockItinerary(userIntent);
-      const stops = await buildStops(mock);
-      setItinerary(stops);
-      setIsOffline(true); // shows "offline" badge so you know it's mock
-      addMarkers(stops);
+      console.error("Groq failed, keeping mock:", error);
+      // Mock already shown — just keep it, no flicker
     } finally {
       setLoading(false);
     }
@@ -769,9 +763,11 @@ export default function Home() {
 
           {/* Loading */}
           {loading && (
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: "16px" }}>
-              <div style={{ width: "32px", height: "32px", border: "2px solid #E0DED8", borderTopColor: "#34A853", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
-              <p style={{ fontFamily: "'Instrument Serif', serif", fontStyle: "italic", fontSize: "15px", color: "#888880" }}>Planning your adventure...</p>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "12px 0", marginBottom: "8px" }}>
+              <div style={{ width: "14px", height: "14px", border: "2px solid #E0DED8", borderTopColor: "#34A853", borderRadius: "50%", animation: "spin 0.8s linear infinite", flexShrink: 0 }} />
+              <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "11px", color: "#34A853", margin: 0, letterSpacing: "0.05em" }}>
+                {itinerary.length > 0 ? "AI refining results..." : "Planning your adventure..."}
+              </p>
             </div>
           )}
 
@@ -819,7 +815,7 @@ export default function Home() {
                 </button>
               </div>
 
-              {isOffline && (
+              {isOffline && !loading && (
                 <div style={{ 
                   marginTop: "16px", 
                   padding: "10px 14px", 
@@ -832,7 +828,7 @@ export default function Home() {
                 }}>
                   <span style={{ fontSize: "14px" }}>⚠️</span>
                   <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "11px", color: "#F5A623", margin: 0 }}>
-                    AI unavailable — showing smart suggestions. Check Groq API key in Vercel.
+                    Smart preview — AI unavailable. Add VITE_GROQ_KEY to Vercel.
                   </p>
                 </div>
               )}
