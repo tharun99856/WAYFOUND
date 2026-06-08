@@ -232,7 +232,7 @@ export default function Home() {
       if (!placesRef.current) return resolve(null);
       placesRef.current.findPlaceFromQuery(
         { query, fields: ["place_id", "geometry", "name"] },
-        (results, status) => {
+        (results: google.maps.places.PlaceResult[] | null, status: google.maps.places.PlacesServiceStatus) => {
           if (status === google.maps.places.PlacesServiceStatus.OK && results?.[0]?.geometry?.location) {
             const p = results[0];
             resolve({ placeId: p.place_id!, location: { lat: p.geometry!.location!.lat(), lng: p.geometry!.location!.lng() }, name: p.name! });
