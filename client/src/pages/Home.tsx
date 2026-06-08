@@ -258,7 +258,7 @@ export default function Home() {
       <div className="wf-map-panel">
         <div className="wf-map-img-wrap">
           <img
-            src="/hyderabad-map.jpg"
+            src="/hyderabad-map.png"
             alt="Hyderabad"
             onError={e => {
               const t = e.currentTarget; t.style.display = "none";
