@@ -395,7 +395,7 @@ export default function Home() {
               <img
                 src="/hyderabad-map.jpg"
                 alt="Hyderabad City Map"
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                style={{ width: "100%", height: "100%", objectFit: "contain", padding: "8px" }}
                 onError={e => {
                   const t = e.currentTarget;
                   t.style.display = "none";
@@ -462,9 +462,20 @@ export default function Home() {
 
           {/* Header */}
           <div style={{ padding: "22px 28px 16px", borderBottom: "0.5px solid #E0DED8", flexShrink: 0 }}>
-            <h1 style={{ fontFamily: "'Instrument Serif', serif", fontSize: "44px", fontWeight: 600, color: "#1A1A1A", margin: "0 0 2px 0", lineHeight: 1, letterSpacing: "-0.02em" }}>
-              Wayfound
-            </h1>
+            {/* Logo mark + wordmark */}
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "2px" }}>
+              {/* SVG logo mark — pin with W */}
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="16" cy="14" r="12" fill="#34A853" />
+                <path d="M16 26 C16 26 26 18 26 12 A10 10 0 0 0 6 12 C6 18 16 26 16 26Z" fill="#34A853" />
+                <circle cx="16" cy="26" r="2" fill="#34A853" />
+                {/* W letterform */}
+                <path d="M10 10 L12.5 18 L16 13 L19.5 18 L22 10" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+              </svg>
+              <h1 style={{ fontFamily: "'Instrument Serif', serif", fontSize: "44px", fontWeight: 600, color: "#1A1A1A", margin: 0, lineHeight: 1, letterSpacing: "-0.02em" }}>
+                Wayfound
+              </h1>
+            </div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <p style={{ fontFamily: "'Instrument Serif', serif", fontSize: "15px", color: "#999", fontStyle: "italic", margin: 0 }}>
                 Stop searching. Start going.
