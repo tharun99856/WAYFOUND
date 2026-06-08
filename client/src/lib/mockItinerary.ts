@@ -2107,6 +2107,17 @@ function pickStops(filtered: Place[], all: Place[], ctx: UserContext): Place[] {
     !(p.category === "nightlife" && (ctx.occasion === "family" || ctx.ageGroup < 21))
   );
 
+  // Budget allocation per stop — reserve budget for subsequent stops
+  // Stop 1: up to 60% of total, Stop 2: up to 30%, Stop 3: remainder
+  const B = ctx.totalBudget;
+  const N = ctx.groupSize;
+  const budgetCaps = [
+    Math.floor(B * 0.60), // stop 1 max total spend
+    Math.floor(B * 0.30), // stop 2 max total spend
+    Math.floor(B * 0.25), // stop 3 max total spend
+    Math.floor(B * 0.15), // stop 4 max total spend (bonus)
+  ];
+
   let sequence: string[][];
   if (ctx.ageGroup < 25 && ctx.occasion !== "date") {
     sequence = ctx.wantsAdventure
@@ -2131,22 +2142,50 @@ function pickStops(filtered: Place[], all: Place[], ctx: UserContext): Place[] {
   const picked: Place[] = [];
   let spent = 0;
 
-  for (const cats of sequence) {
+  for (let i = 0; i < sequence.length; i++) {
+    const cats = sequence[i];
+    const remainingBudget = B - spent;
+    const capForThisStop = Math.min(budgetCaps[i], remainingBudget);
+    // Must also leave enough for remaining stops (min ₹100 per remaining stop)
+    const mustReserve = (sequence.length - i - 1) * 100 * N;
+    const effectiveCap = capForThisStop - mustReserve;
+
     const candidates = pool
-      .filter(p => cats.includes(p.category) && !picked.includes(p) && spent + p.costPerPerson * ctx.groupSize <= ctx.totalBudget * 1.05)
+      .filter(p =>
+        cats.includes(p.category) &&
+        !picked.includes(p) &&
+        p.costPerPerson * N <= effectiveCap &&
+        p.costPerPerson * N > 0 // skip completely free places for budget accuracy
+      )
       .sort((a, b) => scorePlaceForContext(b, ctx) - scorePlaceForContext(a, ctx));
-    if (candidates[0]) {
-      picked.push(candidates[0]);
-      spent += candidates[0].costPerPerson * ctx.groupSize;
+
+    // Fallback: allow free places if nothing fits budget
+    const fallback = pool
+      .filter(p => cats.includes(p.category) && !picked.includes(p) && p.costPerPerson * N <= effectiveCap)
+      .sort((a, b) => scorePlaceForContext(b, ctx) - scorePlaceForContext(a, ctx));
+
+    const winner = candidates[0] ?? fallback[0];
+    if (winner) {
+      picked.push(winner);
+      spent += winner.costPerPerson * N;
     }
   }
 
-  // Try to add 4th stop if budget remains
-  if (picked.length === 3) {
-    const remaining = ctx.totalBudget - spent;
+  // Add bonus stop if ≥15% budget remains
+  const remaining = B - spent;
+  if (picked.length === sequence.length && remaining >= B * 0.15) {
     const bonus = pool
-      .filter(p => !picked.includes(p) && p.costPerPerson * ctx.groupSize <= remaining && p.category !== picked[picked.length - 1].category)
-      .sort((a, b) => scorePlaceForContext(b, ctx) - scorePlaceForContext(a, ctx))[0];
+      .filter(p =>
+        !picked.includes(p) &&
+        p.costPerPerson * N <= remaining &&
+        p.category !== picked[picked.length - 1].category
+      )
+      .sort((a, b) => {
+        // Pick the one that uses remaining budget most efficiently
+        const aUtil = (a.costPerPerson * N) / remaining;
+        const bUtil = (b.costPerPerson * N) / remaining;
+        return bUtil - aUtil;
+      })[0];
     if (bonus) picked.push(bonus);
   }
 
@@ -2195,28 +2234,25 @@ function buildReasoning(p: Place, ctx: UserContext, idx: number, total: number):
   const totalCost = p.costPerPerson * ctx.groupSize;
   const pp = p.costPerPerson;
   const n = ctx.groupSize;
+  const math = n > 1 ? `₹${pp}/person × ${n} = ₹${totalCost} total` : `₹${totalCost}`;
 
-  if (p.category === "adventure") return `₹${pp}/person × ${n} = ₹${totalCost} total — perfect adrenaline opener for ${ctx.ageGroup}-year-old group`;
-  if (p.category === "sports") return `₹${pp}/person × ${n} = ₹${totalCost} total — ${n} people, great team activity`;
-  if (p.category === "entertainment") return `₹${pp}/person × ${n} = ₹${totalCost} total — ideal indoor fun for the group`;
+  if (p.category === "adventure") return `${math} — adrenaline opener for ${ctx.ageGroup}-yr group`;
+  if (p.category === "sports") return `${math} — great team activity for ${n} people`;
+  if (p.category === "entertainment") return `${math} — ideal indoor fun for the group`;
   if (p.category === "food") {
-    if (p.tags.includes("biryani")) return `₹${pp}/person × ${n} = ₹${totalCost} total — iconic Hyderabad biryani, can't miss`;
-    if (p.tags.includes("bbq")) return `₹${pp}/person × ${n} = ₹${totalCost} total — unlimited BBQ, best for groups of ${n}`;
-    if (p.tags.includes("irani-chai")) return `₹${pp}/person × ${n} = ₹${totalCost} total — authentic Hyderabadi chai, great quick stop`;
-    return `₹${pp}/person × ${n} = ₹${totalCost} total — well-rated, fits the group's vibe`;
+    if (p.tags.includes("biryani")) return `${math} — iconic Hyderabad biryani`;
+    if (p.tags.includes("bbq")) return `${math} — unlimited BBQ, best for groups`;
+    if (p.tags.includes("irani-chai")) return `${math} — authentic Hyderabadi chai stop`;
+    return `${math} — well-rated, fits budget`;
   }
-  if (p.category === "dessert") return idx === total - 1
-    ? `₹${pp}/person × ${n} = ₹${totalCost} total — sweet finish to a great night`
-    : `₹${pp}/person × ${n} = ₹${totalCost} total — quick dessert stop`;
-  if (p.category === "cultural") return `₹${pp}/person × ${n} = ₹${totalCost} total — ${p.tags.includes("iconic") ? "must-see Hyderabad landmark" : "rich heritage experience"}`;
-  if (p.category === "hidden_gem") return `₹${pp}/person × ${n} = ₹${totalCost} total — local's favourite, not on typical tourist lists`;
-  if (p.category === "drinks") return ctx.occasion === "date"
-    ? `₹${pp}/person × ${n} = ₹${totalCost} total — intimate vibe, great for conversations`
-    : `₹${pp}/person × ${n} = ₹${totalCost} total — chill spot, perfect for ${n} friends`;
-  if (p.category === "nightlife") return `₹${pp}/person × ${n} = ₹${totalCost} total — lively night out for the group`;
-  if (p.category === "nature") return `₹${pp}/person × ${n} = ₹${totalCost} total — ${p.tags.includes("romantic") ? "scenic and romantic" : "fresh air and views"}`;
-  if (p.category === "shopping") return `₹${pp}/person × ${n} = ₹${totalCost} total — great way to round off the day`;
-  return `₹${pp}/person × ${n} = ₹${totalCost} total — highly rated, fits your group perfectly`;
+  if (p.category === "dessert") return `${math} — ${idx === total - 1 ? "sweet finish to the night" : "quick dessert stop"}`;
+  if (p.category === "cultural") return `${math} — ${p.tags.includes("iconic") ? "must-see landmark" : "heritage experience"}`;
+  if (p.category === "hidden_gem") return `${math} — local favourite, off the tourist trail`;
+  if (p.category === "drinks") return `${math} — ${ctx.occasion === "date" ? "intimate vibe, great for conversations" : "chill hangout spot"}`;
+  if (p.category === "nightlife") return `${math} — lively night out`;
+  if (p.category === "nature") return `${math} — ${p.tags.includes("romantic") ? "scenic and romantic" : "fresh air and views"}`;
+  if (p.category === "shopping") return `${math} — great way to round off the day`;
+  return `${math} — fits your group perfectly`;
 }
 
 // ═══════════════════════════════════════════
